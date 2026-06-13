@@ -19,7 +19,7 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem('auth.token');
     if (token) {
-      api.get('/auth/me')
+      api.get('/api/auth/me')
         .then(({ data }) => {
           setUser(data.user);
           setSession({ access_token: token, user: data.user });
