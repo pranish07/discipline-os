@@ -21,6 +21,8 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const oldKeys = ['dos_sleep','dos_tasks','dos_pmo','dos_exercise','dos_screen','dos_goals','dos_exercise_schedule','dos_cleared'];
+    oldKeys.forEach(k => localStorage.removeItem(k));
     setReady(true);
   }, []);
 

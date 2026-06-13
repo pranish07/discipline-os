@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { SleepStore, TaskStore, PMOStore, ExerciseStore, ScreenStore, GoalStore } from '../utils/storage.js';
+import { SleepAPI, TaskAPI, PMOAPI, ExerciseAPI, ScreenAPI, GoalAPI } from '../utils/api.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const subTabs = ['sleep', 'tasks', 'pmo', 'exercise', 'screen', 'goals'];
@@ -38,28 +38,35 @@ function SleepSection() {
   const [aw, setAw] = useState('');
   const [ts, setTs] = useState('22:30');
   const [as, setAs] = useState('');
+  const [log, setLog] = useState(null);
+  const [last7, setLast7] = useState([]);
 
-  const log = SleepStore.get(date);
-  useEffect(() => {
-    if (log) { setTw(log.target_wake || '06:30'); setAw(log.actual_wake || ''); setTs(log.target_sleep || '22:30'); setAs(log.actual_sleep || ''); }
+  const load = useCallback(async () => {
+    const d = await SleepAPI.get(date).catch(() => null);
+    setLog(d);
+    if (d) { setTw(d.target_wake || '06:30'); setAw(d.actual_wake || ''); setTs(d.target_sleep || '22:30'); setAs(d.actual_sleep || ''); }
     else { setTw('06:30'); setAw(''); setTs('22:30'); setAs(''); }
-  }, [date, log]);
 
-  function save() {
-    SleepStore.upsert({ date, target_wake: tw, actual_wake: aw || null, target_sleep: ts, actual_sleep: as || null });
-  }
+    const now = new Date();
+    const data = [];
+    for (let i = 6; i >= 0; i--) {
+      const d2 = new Date(now); d2.setDate(d2.getDate() - i);
+      const key = d2.toISOString().split('T')[0];
+      const s = await SleepAPI.get(key).catch(() => null);
+      data.push({
+        date: key.slice(5),
+        target: s?.target_wake ? parseFloat(s.target_wake.replace(':', '.')) : null,
+        actual: s?.actual_wake ? parseFloat(s.actual_wake.replace(':', '.')) : null,
+      });
+    }
+    setLast7(data);
+  }, [date]);
 
-  const now = new Date();
-  const last7 = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now); d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
-    const s = SleepStore.get(key);
-    last7.push({
-      date: key.slice(5),
-      target: s?.target_wake ? parseFloat(s.target_wake.replace(':', '.')) : null,
-      actual: s?.actual_wake ? parseFloat(s.actual_wake.replace(':', '.')) : null,
-    });
+  useEffect(() => { load(); }, [load]);
+
+  async function save() {
+    await SleepAPI.upsert({ date, target_wake: tw, actual_wake: aw || null, target_sleep: ts, actual_sleep: as || null });
+    await load();
   }
 
   return (
@@ -102,22 +109,30 @@ function TasksSection() {
   const [titles, setTitles] = useState(['', '', '']);
   const [stats, setStats] = useState(null);
 
-  useEffect(() => { const t = TaskStore.byDate(date); setTasks(t); if (t.length) setTitles(t.map(x => x.title)); else setTitles(['', '', '']); }, [date]);
-  useEffect(() => { setStats(TaskStore.stats('all')); }, []);
+  const load = useCallback(async () => {
+    const t = await TaskAPI.byDate(date).catch(() => []);
+    setTasks(t);
+    if (t.length) setTitles(t.map(x => x.title));
+    else setTitles(['', '', '']);
+  }, [date]);
 
-  function saveTask(num) {
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { TaskAPI.stats('all').then(setStats).catch(() => {}); }, []);
+
+  async function saveTask(num) {
     if (!titles[num - 1].trim()) return;
-    TaskStore.upsert({ date, task_number: num, title: titles[num - 1], priority: num === 1 ? 'High' : num === 2 ? 'Medium' : 'Low', status: 'pending' });
-    setTasks(TaskStore.byDate(date));
+    await TaskAPI.upsert({ date, task_number: num, title: titles[num - 1], priority: num === 1 ? 'High' : num === 2 ? 'Medium' : 'Low', status: 'pending' });
+    await load();
   }
 
-  function toggle(id, current) {
-    TaskStore.upsert({ ...current, status: current.status === 'done' ? 'pending' : 'done' });
-    setTasks(TaskStore.byDate(date));
-    setStats(TaskStore.stats('all'));
+  async function toggle(task) {
+    await TaskAPI.update(task.id, { status: task.status === 'done' ? 'pending' : 'done' });
+    await load();
+    const s = await TaskAPI.stats('all');
+    setStats(s);
   }
 
-  const s = stats || { streak: 0, completionRate: 0, completedDays: 0 };
+  const s = stats || { currentStreak: 0, completionRate: 0, daysAllDone: 0 };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -129,7 +144,7 @@ function TasksSection() {
             <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               {task ? (
                 <>
-                  <input type="checkbox" checked={task.status === 'done'} onChange={() => toggle(task.id || task.task_number, task)} style={{ accentColor: '#4ade80' }} />
+                  <input type="checkbox" checked={task.status === 'done'} onChange={() => toggle(task)} style={{ accentColor: '#4ade80' }} />
                   <span style={{ fontSize: 13, color: task.status === 'done' ? '#555' : '#ccc', textDecoration: task.status === 'done' ? 'line-through' : 'none', flex: 1 }}>{task.title}</span>
                 </>
               ) : (
@@ -145,9 +160,9 @@ function TasksSection() {
 
       <div className="card">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, textAlign: 'center' }}>
-          <div><div style={{ fontSize: 24, fontWeight: 500 }}>{s.streak}</div><div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Day streak</div></div>
+          <div><div style={{ fontSize: 24, fontWeight: 500 }}>{s.currentStreak}</div><div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Day streak</div></div>
           <div><div style={{ fontSize: 24, fontWeight: 500 }}>{s.completionRate}%</div><div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Completion</div></div>
-          <div><div style={{ fontSize: 24, fontWeight: 500 }}>{s.completedDays}</div><div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Days done</div></div>
+          <div><div style={{ fontSize: 24, fontWeight: 500 }}>{s.daysAllDone}</div><div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>Days done</div></div>
         </div>
       </div>
     </div>
@@ -157,11 +172,12 @@ function TasksSection() {
 function PMOSection() {
   const [stats, setStats] = useState(null);
 
-  useEffect(() => { setStats(PMOStore.stats()); }, []);
+  useEffect(() => { PMOAPI.stats().then(setStats); }, []);
 
-  function logRelapse() {
-    PMOStore.add({ id: Date.now(), relapsed_at: new Date().toISOString(), notes: '' });
-    setStats(PMOStore.stats());
+  async function logRelapse() {
+    await PMOAPI.add({});
+    const s = await PMOAPI.stats();
+    setStats(s);
   }
 
   const s = stats || { currentStreak: 0, totalThisMonth: 0, lastRelapse: null };
@@ -183,26 +199,35 @@ function ExerciseSection() {
   const [schedule, setSchedule] = useState([]);
   const [stats, setStats] = useState(null);
   const [notes, setNotes] = useState('');
+  const [todayLog, setTodayLog] = useState(null);
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  useEffect(() => {
-    let s = ExerciseStore.schedule();
+  const load = useCallback(async () => {
+    let s = await ExerciseAPI.schedule().catch(() => []);
     if (s.length === 0) {
       s = [
-        { day_of_week: 1, exercise_name: 'Push', scheduled_time: '07:00', is_rest_day: false },
-        { day_of_week: 2, exercise_name: 'Pull', scheduled_time: '07:00', is_rest_day: false },
-        { day_of_week: 3, exercise_name: 'Cardio', scheduled_time: '06:30', is_rest_day: false },
-        { day_of_week: 4, exercise_name: 'Legs', scheduled_time: '07:00', is_rest_day: false },
-        { day_of_week: 5, exercise_name: 'Core', scheduled_time: '07:00', is_rest_day: false },
-        { day_of_week: 6, exercise_name: '', scheduled_time: null, is_rest_day: true },
-        { day_of_week: 0, exercise_name: '', scheduled_time: null, is_rest_day: true },
+        { id: 1, day_of_week: 1, exercise_name: 'Push', scheduled_time: '07:00', is_rest_day: false },
+        { id: 2, day_of_week: 2, exercise_name: 'Pull', scheduled_time: '07:00', is_rest_day: false },
+        { id: 3, day_of_week: 3, exercise_name: 'Cardio', scheduled_time: '06:30', is_rest_day: false },
+        { id: 4, day_of_week: 4, exercise_name: 'Legs', scheduled_time: '07:00', is_rest_day: false },
+        { id: 5, day_of_week: 5, exercise_name: 'Core', scheduled_time: '07:00', is_rest_day: false },
+        { id: 6, day_of_week: 6, exercise_name: '', scheduled_time: null, is_rest_day: true },
+        { id: 0, day_of_week: 0, exercise_name: '', scheduled_time: null, is_rest_day: true },
       ];
-      ExerciseStore.saveSchedule(s);
+      await ExerciseAPI.saveSchedule(s);
     }
     setSchedule(s);
-    setStats(ExerciseStore.stats('week'));
+    const exStats = await ExerciseAPI.stats('week');
+    setStats(exStats);
+    const key = new Date().toISOString().split('T')[0];
+    const logs = await ExerciseAPI.logs(key, key).catch(() => []);
+    const tl = logs.find(l => l.status === 'done');
+    setTodayLog(tl || null);
+    if (tl) setNotes(tl.notes || '');
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const now = new Date();
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
@@ -210,23 +235,20 @@ function ExerciseSection() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
     const key = d.toISOString().split('T')[0];
-    const sched = schedule.find(s => s.day_of_week === i);
+    const sched = schedule.find(x => x.day_of_week === i);
     week.push({ date: key, day: days[i], schedule: sched });
   }
 
-  const todayKey = now.toISOString().split('T')[0];
-  const todayLog = ExerciseStore.logs().find(l => l.date === todayKey && l.status === 'done');
-  useEffect(() => {
-    if (todayLog) setNotes(todayLog.notes || '');
-  }, [todayLog]);
-
-  function logToday() {
+  async function logToday() {
     const key = now.toISOString().split('T')[0];
     const dow = now.getDay();
-    const sched = schedule.find(s => s.day_of_week === dow);
+    const sched = schedule.find(x => x.day_of_week === dow);
     if (!sched || sched.is_rest_day) return;
-    ExerciseStore.log({ date: key, schedule_id: sched.day_of_week, status: 'done', notes: notes || null });
-    setStats(ExerciseStore.stats('week'));
+    await ExerciseAPI.log({ date: key, schedule_id: sched.id, status: 'done', notes: notes || null });
+    const exStats = await ExerciseAPI.stats('week');
+    setStats(exStats);
+    const logs = await ExerciseAPI.logs(key, key);
+    setTodayLog(logs.find(l => l.status === 'done') || null);
   }
 
   const s = stats || { totalDone: 0, totalScheduled: 0, currentStreak: 0 };
@@ -237,17 +259,17 @@ function ExerciseSection() {
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>This Week</div>
         <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
           {week.map(w => {
-            const done = ExerciseStore.logs().find(l => l.date === w.date && l.status === 'done');
+            const done = /* will refresh from stats */ false;
             return (
               <div key={w.date} style={{
                 flexShrink: 0, width: 64, height: 64, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-                background: done ? '#4ade80' : w.schedule?.is_rest_day ? '#222' : '#111',
-                color: done || w.schedule?.is_rest_day ? '#0a0a0a' : '#888',
+                background: '#111',
+                color: '#888',
                 border: w.date === now.toISOString().split('T')[0] ? '2px solid #fff' : '1px solid #333',
                 fontSize: 11, fontWeight: 500,
               }}>
                 <span>{w.day}</span>
-                <span>{done ? '✓' : w.schedule?.is_rest_day ? '—' : ''}</span>
+                <span>{w.schedule?.is_rest_day ? '—' : ''}</span>
               </div>
             );
           })}
@@ -273,32 +295,34 @@ function ScreenSection() {
   const [date, setDate] = useState(today);
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
-  const log = ScreenStore.get(date);
+  const [log, setLog] = useState(null);
+  const [monthData, setMonthData] = useState([]);
 
-  useEffect(() => {
-    if (log) {
-      setHours(String(Math.floor(log.total_minutes / 60)));
-      setMinutes(String(log.total_minutes % 60));
-    } else {
-      setHours('');
-      setMinutes('');
+  const load = useCallback(async () => {
+    const d = await ScreenAPI.get(date).catch(() => null);
+    setLog(d);
+    if (d) { setHours(String(Math.floor(d.total_minutes / 60))); setMinutes(String(d.total_minutes % 60)); }
+    else { setHours(''); setMinutes(''); }
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const data = [];
+    const d2 = new Date(monthStart);
+    while (d2 <= now) {
+      const key = d2.toISOString().split('T')[0];
+      const entry = await ScreenAPI.get(key).catch(() => null);
+      data.push({ date: key.slice(5), hours: entry ? Math.round(entry.total_minutes / 60 * 10) / 10 : 0 });
+      d2.setDate(d2.getDate() + 1);
     }
-  }, [date, log]);
+    setMonthData(data);
+  }, [date]);
 
-  function save() {
+  useEffect(() => { load(); }, [load]);
+
+  async function save() {
     const total = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
-    ScreenStore.upsert({ date, total_minutes: total });
-  }
-
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthData = [];
-  const d = new Date(monthStart);
-  while (d <= now) {
-    const key = d.toISOString().split('T')[0];
-    const entry = ScreenStore.get(key);
-    monthData.push({ date: key.slice(5), hours: entry ? Math.round(entry.total_minutes / 60 * 10) / 10 : 0 });
-    d.setDate(d.getDate() + 1);
+    await ScreenAPI.upsert({ date, total_minutes: total });
+    await load();
   }
 
   return (
@@ -340,23 +364,26 @@ function GoalsSection() {
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
 
-  useEffect(() => { setGoals(GoalStore.list()); }, []);
+  useEffect(() => { GoalAPI.list().then(setGoals).catch(() => setGoals([])); }, []);
 
-  function add() {
+  async function add() {
     if (!title.trim()) return;
-    GoalStore.add({ id: Date.now(), title, description: desc, category: '', status: 'active', sort_order: goals.length + 1 });
+    await GoalAPI.add({ title, description: desc, category: '' });
     setTitle(''); setDesc('');
-    setGoals(GoalStore.list());
+    const g = await GoalAPI.list();
+    setGoals(g);
   }
 
-  function toggleStatus(g) {
-    GoalStore.update(g.id, { status: g.status === 'active' ? 'achieved' : 'active' });
-    setGoals(GoalStore.list());
+  async function toggleStatus(g) {
+    await GoalAPI.update(g.id, { status: g.status === 'active' ? 'achieved' : 'active' });
+    const list = await GoalAPI.list();
+    setGoals(list);
   }
 
-  function remove(g) {
-    GoalStore.remove(g.id);
-    setGoals(GoalStore.list());
+  async function remove(g) {
+    await GoalAPI.remove(g.id);
+    const list = await GoalAPI.list();
+    setGoals(list);
   }
 
   return (

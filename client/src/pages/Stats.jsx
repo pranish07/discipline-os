@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { SleepStore, TaskStore, PMOStore, ExerciseStore, ScreenStore, GoalStore } from '../utils/storage.js';
+import { SleepAPI, TaskAPI, PMOAPI, ExerciseAPI, ScreenAPI } from '../utils/api.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 const periods = [
@@ -9,100 +9,51 @@ const periods = [
   { key: 'month', label: 'This Month' },
 ];
 
-function periodRange(key) {
-  const now = new Date();
-  const end = now.toISOString().split('T')[0];
-  let start;
-  if (key === 'today') { start = end; }
-  else if (key === 'yesterday') {
-    const d = new Date(now); d.setDate(d.getDate() - 1);
-    start = d.toISOString().split('T')[0];
-  } else if (key === 'week') {
-    const d = new Date(now); d.setDate(now.getDate() - now.getDay());
-    start = d.toISOString().split('T')[0];
-  } else if (key === 'month') {
-    start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  } else {
-    start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-  }
-  return { start, end };
-}
-
-function inRange(date, start, end) {
-  return date >= start && date <= end;
-}
-
 export default function Stats() {
   const [period, setPeriod] = useState('month');
+  const [sleepData, setSleepData] = useState([]);
+  const [taskData, setTaskData] = useState([]);
+  const [exData, setExData] = useState([]);
+  const [screenData, setScreenData] = useState([]);
+  const [score, setScore] = useState(0);
+  const [pmoStats, setPmoStats] = useState(null);
 
-  const range = useMemo(() => periodRange(period), [period]);
+  useEffect(() => {
+    Promise.all([
+      SleepAPI.stats(period === 'week' ? 'week' : period === 'month' ? 'month' : 'week').then(d => {
+        const r = periodRange(period);
+        setSleepData(d.filter(s => s.date >= r.start && s.date <= r.end).map(s => ({
+          date: s.date?.slice(5),
+          onTime: s.wakeOnTime === true && s.sleepOnTime === true ? 1 : s.wakeOnTime === false || s.sleepOnTime === false ? 0 : null,
+        })));
+      }).catch(() => setSleepData([])),
+      TaskAPI.stats(period === 'week' ? 'week' : period === 'month' ? 'month' : 'month').then(d => {
+        const r = periodRange(period);
+        setTaskData((d.days || []).filter(day => day.date >= r.start && day.date <= r.end).map(day => ({ date: day.date?.slice(5), done: day.done, total: day.total })));
+      }).catch(() => setTaskData([])),
+      ExerciseAPI.stats(period === 'week' ? 'week' : period === 'month' ? 'month' : 'year').then(d => {
+        const r = periodRange(period);
+        const weeks = {};
+        (d.logs || []).filter(l => l.date >= r.start && l.date <= r.end).forEach(l => {
+          const week = l.date?.slice(0, 7);
+          if (!weeks[week]) weeks[week] = { week, done: 0, total: 0 };
+          weeks[week].total += 1;
+          if (l.status === 'done') weeks[week].done += 1;
+        });
+        setExData(Object.values(weeks));
+      }).catch(() => setExData([])),
+      PMOAPI.stats().then(setPmoStats).catch(() => setPmoStats(null)),
+      ScreenAPI.list().then(all => {
+        const r = periodRange(period);
+        setScreenData(all.filter(s => s.date >= r.start && s.date <= r.end).map(s => ({
+          date: s.date?.slice(5),
+          hours: s.total_minutes ? Math.round(s.total_minutes / 60 * 10) / 10 : 0,
+        })));
+      }).catch(() => setScreenData([])),
+    ]);
+  }, [period]);
 
-  const pmoStats = useMemo(() => PMOStore.stats(), []);
-
-  const score = useMemo(() => {
-    const { start, end } = range;
-    const sleepLogs = SleepStore.list().filter(s => inRange(s.date, start, end));
-    const taskDays = TaskStore.range(start, end);
-    const exLogs = ExerciseStore.logs().filter(l => inRange(l.date, start, end));
-    const taskDone = taskDays.filter(t => t.status === 'done').length;
-    const taskTotal = taskDays.length;
-
-    const sleepScore = sleepLogs.length > 0
-      ? Math.round(sleepLogs.filter(s => {
-          const wakeOk = s.target_wake && s.actual_wake ? Math.abs(new Date(`2000-01-01T${s.actual_wake}`) - new Date(`2000-01-01T${s.target_wake}`)) <= 15 * 60 * 1000 : true;
-          const sleepOk = s.target_sleep && s.actual_sleep ? Math.abs(new Date(`2000-01-01T${s.actual_sleep}`) - new Date(`2000-01-01T${s.target_sleep}`)) <= 15 * 60 * 1000 : true;
-          return wakeOk && sleepOk;
-        }).length / sleepLogs.length * 100) : 0;
-    const taskScore = taskTotal > 0 ? Math.round(taskDone / taskTotal * 100) : 0;
-    const exScore = exLogs.length > 0 ? Math.round(exLogs.filter(l => l.status === 'done').length / exLogs.length * 100) : 0;
-    const pmoScore = pmoStats.currentStreak >= 7 ? 100 : pmoStats.currentStreak >= 3 ? 60 : pmoStats.currentStreak >= 1 ? 30 : 0;
-
-    return Math.round((sleepScore + taskScore + exScore + pmoScore) / 4);
-  }, [range, pmoStats]);
-
-  const sleepData = useMemo(() => {
-    const { start, end } = range;
-    return SleepStore.list().filter(s => inRange(s.date, start, end)).map(s => ({
-      date: s.date?.slice(5),
-      onTime: s.target_wake && s.actual_wake && s.target_sleep && s.actual_sleep
-        ? (Math.abs(new Date(`2000-01-01T${s.actual_wake}`) - new Date(`2000-01-01T${s.target_wake}`)) <= 15 * 60 * 1000 &&
-           Math.abs(new Date(`2000-01-01T${s.actual_sleep}`) - new Date(`2000-01-01T${s.target_sleep}`)) <= 15 * 60 * 1000) ? 1 : 0
-        : null,
-    }));
-  }, [range]);
-
-  const taskData = useMemo(() => {
-    const { start, end } = range;
-    const days = {};
-    TaskStore.range(start, end).forEach(t => {
-      if (!days[t.date]) days[t.date] = { date: t.date?.slice(5), done: 0, total: 0 };
-      days[t.date].total += 1;
-      if (t.status === 'done') days[t.date].done += 1;
-    });
-    return Object.values(days);
-  }, [range]);
-
-  const exData = useMemo(() => {
-    const { start, end } = range;
-    const weeks = {};
-    ExerciseStore.logs().filter(l => inRange(l.date, start, end)).forEach(l => {
-      const week = l.date?.slice(0, 7);
-      if (!weeks[week]) weeks[week] = { week, done: 0, total: 0 };
-      weeks[week].total += 1;
-      if (l.status === 'done') weeks[week].done += 1;
-    });
-    return Object.values(weeks);
-  }, [range]);
-
-  const screenData = useMemo(() => {
-    const { start, end } = range;
-    return ScreenStore.list().filter(s => inRange(s.date, start, end)).map(s => ({
-      date: s.date?.slice(5),
-      hours: s.total_minutes ? Math.round(s.total_minutes / 60 * 10) / 10 : 0,
-    }));
-  }, [range]);
-
-  const p = pmoStats;
+  const p = pmoStats || { currentStreak: 0, totalThisMonth: 0 };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -207,4 +158,23 @@ export default function Stats() {
       </div>
     </div>
   );
+}
+
+function periodRange(key) {
+  const now = new Date();
+  const end = now.toISOString().split('T')[0];
+  let start;
+  if (key === 'today') { start = end; }
+  else if (key === 'yesterday') {
+    const d = new Date(now); d.setDate(d.getDate() - 1);
+    start = d.toISOString().split('T')[0];
+  } else if (key === 'week') {
+    const d = new Date(now); d.setDate(now.getDate() - now.getDay());
+    start = d.toISOString().split('T')[0];
+  } else if (key === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  } else {
+    start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+  }
+  return { start, end };
 }
