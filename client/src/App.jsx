@@ -4,7 +4,6 @@ import Home from './pages/Home.jsx';
 import Track from './pages/Track.jsx';
 import Stats from './pages/Stats.jsx';
 import Login from './pages/Login.jsx';
-import { seed, isSeeded } from './utils/storage.js';
 
 const tabs = [
   { key: 'home', path: '/home', label: 'Home' },
@@ -22,7 +21,6 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!isSeeded()) seed();
     setReady(true);
   }, []);
 
@@ -48,13 +46,6 @@ export default function App() {
   })();
 
   if (!ready) return null;
-
-  function clearSeedFlag() {
-    const keys = ['dos_sleep', 'dos_tasks', 'dos_pmo', 'dos_exercise', 'dos_screen', 'dos_goals', 'dos_exercise_schedule', 'dos_cleared'];
-    keys.forEach(k => localStorage.removeItem(k));
-    seed();
-    window.location.reload();
-  }
 
   if (!authed) {
     return (
@@ -91,7 +82,6 @@ export default function App() {
               style={{ padding: '4px 8px', fontSize: 11, borderRadius: 6, border: '1px solid #333', background: 'transparent', color: '#555', cursor: 'pointer' }}>
               ✕
             </button>
-            <button onClick={clearSeedFlag} title="Reset seed data" style={{ padding: '4px 8px', fontSize: 11, borderRadius: 6, border: '1px solid #333', background: 'transparent', color: '#555', cursor: 'pointer' }}>↻</button>
           </div>
         </div>
       </nav>
