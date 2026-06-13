@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { getSchedule, saveSchedule, getLogs, upsertLog, getExerciseStats } from '../controllers/exerciseController.js';
+import { getSchedule, saveSchedule, getLogs, upsertLog, updateLog, deleteLog, getExerciseStats } from '../controllers/exerciseController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -104,6 +104,45 @@ router.get('/logs', getLogs);
  *         description: Upserted log
  */
 router.post('/logs', upsertLog);
+
+/**
+ * @openapi
+ * /api/exercise/logs/{id}:
+ *   put:
+ *     tags: [Exercise]
+ *     summary: Update an exercise log
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status: { type: string, enum: [done, skipped] }
+ *               notes: { type: string }
+ *     responses:
+ *       200:
+ *         description: Updated log
+ *   delete:
+ *     tags: [Exercise]
+ *     summary: Delete an exercise log
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Deleted
+ */
+router.put('/logs/:id', updateLog);
+router.delete('/logs/:id', deleteLog);
 
 /**
  * @openapi

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { getScreenTimeLog, upsertScreenTimeLog, getScreenTimeStats, deleteScreenTimeLog } from '../controllers/screenTimeController.js';
+import { getScreenTimeLog, upsertScreenTimeLog, updateScreenTimeLog, getScreenTimeStats, deleteScreenTimeLog } from '../controllers/screenTimeController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -74,6 +74,18 @@ router.post('/', upsertScreenTimeLog);
 /**
  * @openapi
  * /api/screen-time/{id}:
+ *   put:
+ *     tags: [Screen Time]
+ *     summary: Update a screen time log
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Updated screen time log
  *   delete:
  *     tags: [Screen Time]
  *     summary: Delete a screen time log
@@ -87,6 +99,7 @@ router.post('/', upsertScreenTimeLog);
  *       200:
  *         description: Deleted
  */
+router.put('/:id', updateScreenTimeLog);
 router.delete('/:id', deleteScreenTimeLog);
 
 export default router;

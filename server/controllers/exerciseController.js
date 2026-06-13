@@ -79,6 +79,36 @@ export async function upsertLog(req, res) {
   res.json(data);
 }
 
+export async function updateLog(req, res) {
+  const { id } = req.params;
+  const updates = req.body;
+  delete updates.user_id;
+  delete updates.id;
+
+  const { data, error } = await supabase
+    .from('exercise_logs')
+    .update(updates)
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .select()
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+}
+
+export async function deleteLog(req, res) {
+  const { id } = req.params;
+  const { error } = await supabase
+    .from('exercise_logs')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', req.user.id);
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ success: true });
+}
+
 export async function getExerciseStats(req, res) {
   const { period = 'month' } = req.query;
   const now = new Date();

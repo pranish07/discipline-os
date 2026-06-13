@@ -76,6 +76,18 @@ export async function updateTask(req, res) {
   res.json(data);
 }
 
+export async function deleteTask(req, res) {
+  const { id } = req.params;
+  const { error } = await supabase
+    .from('daily_tasks')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', req.user.id);
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ success: true });
+}
+
 export async function getTaskStats(req, res) {
   const { period = 'month' } = req.query;
   const now = new Date();

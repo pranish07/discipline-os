@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { getSleepLogs, getSleepLog, upsertSleepLog, getSleepStats } from '../controllers/sleepController.js';
+import { getSleepLogs, getSleepLog, upsertSleepLog, updateSleepLog, deleteSleepLog, getSleepStats } from '../controllers/sleepController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -96,5 +96,7 @@ router.get('/:date', getSleepLog);
  *         description: Upserted sleep log
  */
 router.post('/', upsertSleepLog);
+router.put('/:id', updateSleepLog);
+router.delete('/:id', deleteSleepLog);
 
 export default router;

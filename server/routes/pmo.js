@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { getRelapses, logRelapse, getPMOStats, deleteRelapse } from '../controllers/pmoController.js';
+import { getRelapses, logRelapse, updateRelapse, getPMOStats, deleteRelapse } from '../controllers/pmoController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -74,6 +74,31 @@ router.get('/stats', getPMOStats);
  *         description: Created relapse entry
  */
 router.post('/', logRelapse);
+
+/**
+ * @openapi
+ * /api/pmo/{id}:
+ *   put:
+ *     tags: [PMO]
+ *     summary: Update a relapse entry
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes: { type: string }
+ *     responses:
+ *       200:
+ *         description: Updated relapse entry
+ */
+router.put('/:id', updateRelapse);
 
 /**
  * @openapi

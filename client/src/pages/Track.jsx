@@ -69,6 +69,12 @@ function SleepSection() {
     await load();
   }
 
+  async function remove() {
+    if (!log?.id) return;
+    await SleepAPI.remove(log.id);
+    await load();
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="card">
@@ -81,7 +87,10 @@ function SleepSection() {
           <div><label className="label">Target Sleep</label><TimeSelect value={ts} onChange={setTs} /></div>
           <div><label className="label">Actual Sleep</label><TimeSelect value={as} onChange={setAs} /></div>
         </div>
-        <button onClick={save} className="btn btn-primary">Save</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={save} className="btn btn-primary">Save</button>
+          {log && <button onClick={remove} className="btn btn-danger" style={{ padding: '8px 14px' }}>Delete</button>}
+        </div>
       </div>
 
       <div className="card">
@@ -132,6 +141,13 @@ function TasksSection() {
     setStats(s);
   }
 
+  async function removeTask(id) {
+    await TaskAPI.remove(id);
+    await load();
+    const s = await TaskAPI.stats('all');
+    setStats(s);
+  }
+
   const s = stats || { currentStreak: 0, completionRate: 0, daysAllDone: 0 };
 
   return (
@@ -146,6 +162,7 @@ function TasksSection() {
                 <>
                   <input type="checkbox" checked={task.status === 'done'} onChange={() => toggle(task)} style={{ accentColor: '#4ade80' }} />
                   <span style={{ fontSize: 13, color: task.status === 'done' ? '#555' : '#ccc', textDecoration: task.status === 'done' ? 'line-through' : 'none', flex: 1 }}>{task.title}</span>
+                  <button onClick={() => removeTask(task.id)} className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12, color: '#f87171' }}>Delete</button>
                 </>
               ) : (
                 <>
@@ -171,13 +188,25 @@ function TasksSection() {
 
 function PMOSection() {
   const [stats, setStats] = useState(null);
+  const [relapses, setRelapses] = useState([]);
 
-  useEffect(() => { PMOAPI.stats().then(setStats); }, []);
+  useEffect(() => {
+    PMOAPI.stats().then(setStats);
+    PMOAPI.list().then(setRelapses).catch(() => setRelapses([]));
+  }, []);
 
   async function logRelapse() {
     await PMOAPI.add({});
-    const s = await PMOAPI.stats();
+    const [s, r] = await Promise.all([PMOAPI.stats(), PMOAPI.list()]);
     setStats(s);
+    setRelapses(r);
+  }
+
+  async function removeRelapse(id) {
+    await PMOAPI.remove(id);
+    const [s, r] = await Promise.all([PMOAPI.stats(), PMOAPI.list()]);
+    setStats(s);
+    setRelapses(r);
   }
 
   const s = stats || { currentStreak: 0, totalThisMonth: 0, lastRelapse: null };
@@ -191,6 +220,20 @@ function PMOSection() {
         <div style={{ fontSize: 13, color: s.totalThisMonth > 0 ? '#f87171' : '#888', marginTop: 4 }}>This month: {s.totalThisMonth}</div>
         <button onClick={logRelapse} className="btn btn-danger" style={{ marginTop: 20 }}>Log relapse</button>
       </div>
+
+      {relapses.length > 0 && (
+        <div className="card">
+          <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Relapse History</div>
+          {relapses.map(r => (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #1a1a1a' }}>
+              <span style={{ fontSize: 13, color: '#ccc' }}>
+                {new Date(r.relapsed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <button onClick={() => removeRelapse(r.id)} className="btn btn-ghost" style={{ padding: '4px 8px', fontSize: 12, color: '#f87171' }}>Delete</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -251,6 +294,15 @@ function ExerciseSection() {
     setTodayLog(logs.find(l => l.status === 'done') || null);
   }
 
+  async function removeTodayLog() {
+    if (!todayLog?.id) return;
+    await ExerciseAPI.removeLog(todayLog.id);
+    setTodayLog(null);
+    setNotes('');
+    const exStats = await ExerciseAPI.stats('week');
+    setStats(exStats);
+  }
+
   const s = stats || { totalDone: 0, totalScheduled: 0, currentStreak: 0 };
 
   return (
@@ -276,7 +328,11 @@ function ExerciseSection() {
         </div>
         <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
           <input className="input" placeholder="e.g. 20 x 5 sets, 10 reps" value={notes} onChange={e => setNotes(e.target.value)} style={{ flex: 1 }} />
-          <button onClick={logToday} className="btn btn-primary">Log workout</button>
+          {todayLog ? (
+            <button onClick={removeTodayLog} className="btn btn-danger">Remove</button>
+          ) : (
+            <button onClick={logToday} className="btn btn-primary">Log workout</button>
+          )}
         </div>
       </div>
 
@@ -325,6 +381,12 @@ function ScreenSection() {
     await load();
   }
 
+  async function remove() {
+    if (!log?.id) return;
+    await ScreenAPI.remove(log.id);
+    await load();
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="card">
@@ -339,6 +401,7 @@ function ScreenSection() {
             <input type="number" className="input" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="e.g. 30" min="0" max="59" />
           </div>
           <button onClick={save} className="btn btn-primary" style={{ height: 36 }}>Save</button>
+          {log && <button onClick={remove} className="btn btn-danger" style={{ height: 36 }}>Delete</button>}
         </div>
       </div>
 

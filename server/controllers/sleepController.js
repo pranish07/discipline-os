@@ -127,3 +127,33 @@ export async function getSleepStats(req, res) {
 
   res.json(stats);
 }
+
+export async function updateSleepLog(req, res) {
+  const { id } = req.params;
+  const updates = req.body;
+  delete updates.user_id;
+  delete updates.id;
+
+  const { data, error } = await supabase
+    .from('sleep_logs')
+    .update(updates)
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .select()
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+}
+
+export async function deleteSleepLog(req, res) {
+  const { id } = req.params;
+  const { error } = await supabase
+    .from('sleep_logs')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', req.user.id);
+
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ success: true });
+}

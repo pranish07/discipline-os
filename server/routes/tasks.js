@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { getTasks, getTasksRange, upsertTask, updateTask, getTaskStats } from '../controllers/tasksController.js';
+import { getTasks, getTasksRange, upsertTask, updateTask, deleteTask, getTaskStats } from '../controllers/tasksController.js';
 
 const router = Router();
 router.use(authMiddleware);
@@ -119,5 +119,6 @@ router.post('/', upsertTask);
  *         description: Updated task
  */
 router.put('/:id', updateTask);
+router.delete('/:id', deleteTask);
 
 export default router;
