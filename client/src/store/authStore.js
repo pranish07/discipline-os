@@ -9,6 +9,7 @@ export const useAuthStore = create((set) => ({
   setLoading: (loading) => set({ loading }),
   signOut: () => {
     localStorage.removeItem('auth.token');
+    localStorage.removeItem('auth.refresh_token');
     set({ user: null, session: null });
   },
 }));

@@ -20,6 +20,7 @@ export default function Login() {
       const { data } = await api.post('/auth/login', { email, password });
       const token = data.access_token;
       localStorage.setItem('auth.token', token);
+      localStorage.setItem('auth.refresh_token', data.refresh_token);
       setUser(data.user);
       setSession({ access_token: token, refresh_token: data.refresh_token, user: data.user });
       navigate('/');

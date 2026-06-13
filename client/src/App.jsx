@@ -19,19 +19,28 @@ export default function App() {
 
   useEffect(() => {
     const token = localStorage.getItem('auth.token');
-    if (token) {
-      api.get('/auth/me')
-        .then(({ data }) => {
-          setUser(data.user);
-          setSession({ access_token: token, user: data.user });
-        })
-        .catch(() => {
-          localStorage.removeItem('auth.token');
-        })
-        .finally(() => setLoading(false));
-    } else {
+    if (!token) {
       setLoading(false);
+      return;
     }
+
+    const refreshToken = localStorage.getItem('auth.refresh_token');
+    if (!refreshToken) {
+      setSession({ access_token: token, user: null });
+    } else {
+      setSession({ access_token: token, refresh_token: refreshToken, user: null });
+    }
+
+    api.get('/auth/me')
+      .then(({ data }) => {
+        setUser(data.user);
+        setSession((s) => ({ ...s, user: data.user }));
+      })
+      .catch(() => {
+        localStorage.removeItem('auth.token');
+        localStorage.removeItem('auth.refresh_token');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
