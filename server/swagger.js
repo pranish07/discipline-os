@@ -83,6 +83,20 @@ const options = {
             created_at: { type: 'string', format: 'date-time' },
           },
         },
+        ScreenTimeLog: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            user_id: { type: 'string', format: 'uuid' },
+            date: { type: 'string', format: 'date' },
+            total_minutes: { type: 'integer' },
+            social_minutes: { type: 'integer', nullable: true },
+            entertainment_minutes: { type: 'integer', nullable: true },
+            productive_minutes: { type: 'integer', nullable: true },
+            notes: { type: 'string', nullable: true },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
         ExerciseLog: {
           type: 'object',
           properties: {

@@ -12,6 +12,7 @@ import Goals from './pages/Goals.jsx';
 import PMO from './pages/PMO.jsx';
 import Exercise from './pages/Exercise.jsx';
 import Stats from './pages/Stats.jsx';
+import ScreenTime from './pages/ScreenTime.jsx';
 
 export default function App() {
   const { user, loading, setUser, setSession, setLoading } = useAuthStore();
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/pmo" element={<PMO />} />
           <Route path="/exercise" element={<Exercise />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/screen-time" element={<ScreenTime />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

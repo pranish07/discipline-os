@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "seed": "node seed.js",
+    "seed:delete": "node seed.js --delete"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

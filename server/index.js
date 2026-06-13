@@ -12,6 +12,7 @@ import pmoRouter from './routes/pmo.js';
 import exerciseRouter from './routes/exercise.js';
 import statsRouter from './routes/stats.js';
 import authRouter from './routes/auth.js';
+import screenTimeRouter from './routes/screenTime.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -28,6 +29,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/screen-time', screenTimeRouter);
 
 app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
 
