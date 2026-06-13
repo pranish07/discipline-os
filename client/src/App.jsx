@@ -1,72 +1,51 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
-import api from './api/axios.js';
-import { useAuthStore } from './store/authStore.js';
-import Layout from './components/Layout.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx';
-import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Sleep from './pages/Sleep.jsx';
-import Tasks from './pages/Tasks.jsx';
-import Goals from './pages/Goals.jsx';
-import PMO from './pages/PMO.jsx';
-import Exercise from './pages/Exercise.jsx';
+import { useState } from 'react';
+import Home from './pages/Home.jsx';
+import Track from './pages/Track.jsx';
 import Stats from './pages/Stats.jsx';
-import ScreenTime from './pages/ScreenTime.jsx';
+
+const tabs = [
+  { key: 'home', label: 'Home' },
+  { key: 'track', label: 'Track' },
+  { key: 'stats', label: 'Stats' },
+];
 
 export default function App() {
-  const { user, loading, setUser, setSession, setLoading } = useAuthStore();
-
-  useEffect(() => {
-    const token = localStorage.getItem('auth.token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    const refreshToken = localStorage.getItem('auth.refresh_token');
-    if (!refreshToken) {
-      setSession({ access_token: token, user: null });
-    } else {
-      setSession({ access_token: token, refresh_token: refreshToken, user: null });
-    }
-
-    api.get('/auth/me')
-      .then(({ data }) => {
-        setUser(data.user);
-        setSession((s) => ({ ...s, user: data.user }));
-      })
-      .catch(() => {
-        localStorage.removeItem('auth.token');
-        localStorage.removeItem('auth.refresh_token');
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-[#a0aec0] text-sm">Loading...</div>
-      </div>
-    );
-  }
+  const [tab, setTab] = useState('home');
 
   return (
-    <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route element={<ProtectedRoute user={user} />}>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/sleep" element={<Sleep />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/pmo" element={<PMO />} />
-          <Route path="/exercise" element={<Exercise />} />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/screen-time" element={<ScreenTime />} />
-        </Route>
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <div style={{ minHeight: '100vh', background: '#0a0a0a' }}>
+      <nav style={{ borderBottom: '1px solid #222', position: 'sticky', top: 0, background: '#0a0a0a', zIndex: 50 }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 48 }}>
+          <span style={{ fontWeight: 500, color: '#fff', fontSize: 15 }}>D/OS</span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: tab === t.key ? '#fff' : 'transparent',
+                  color: tab === t.key ? '#0a0a0a' : '#888',
+                  transition: 'background .15s',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      <main style={{ maxWidth: 960, margin: '0 auto', padding: '24px 16px' }}>
+        {tab === 'home' && <Home />}
+        {tab === 'track' && <Track />}
+        {tab === 'stats' && <Stats />}
+      </main>
+    </div>
   );
 }

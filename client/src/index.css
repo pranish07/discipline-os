@@ -1,56 +1,90 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #0a0a0a;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #2d2d2d;
-    border-radius: 3px;
-  }
-
-  input, textarea, select {
-    outline: none;
-  }
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-@layer components {
-  .card {
-    @apply bg-[#1a1a1a] border border-[#2d2d2d] rounded p-4;
-  }
+body {
+  margin: 0;
+  background: #0a0a0a;
+  color: #e5e5e5;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
 
-  .btn {
-    @apply px-4 py-2 text-sm font-medium rounded transition-colors duration-150;
-  }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-  .btn-primary {
-    @apply btn bg-white text-black hover:bg-gray-200;
-  }
+input, textarea, select, button { font-family: inherit; }
 
-  .btn-danger {
-    @apply btn bg-[#e53e3e] text-white hover:bg-red-600;
-  }
+.card {
+  background: #161616;
+  border: 1px solid #222;
+  border-radius: 12px;
+  padding: 16px;
+}
 
-  .btn-ghost {
-    @apply btn border border-[#2d2d2d] text-[#a0aec0] hover:bg-[#1a1a1a] hover:text-white;
-  }
+.card-sm {
+  background: #161616;
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 12px;
+}
 
-  .input {
-    @apply w-full bg-[#0a0a0a] border border-[#2d2d2d] rounded px-3 py-2 text-white text-sm focus:border-white/30 transition-colors;
-  }
+.btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn:hover { opacity: .8; }
+.btn:disabled { opacity: .4; cursor: default; }
 
-  .label {
-    @apply text-xs text-[#a0aec0] font-medium uppercase tracking-wider mb-1 block;
-  }
+.btn-primary {
+  background: #fff;
+  color: #0a0a0a;
+}
+
+.btn-danger {
+  background: #f87171;
+  color: #0a0a0a;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #333;
+  color: #888;
+}
+.btn-ghost:hover { background: #222; color: #e5e5e5; }
+
+.input {
+  width: 100%;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #e5e5e5;
+  font-size: 13px;
+  outline: none;
+}
+.input:focus { border-color: #555; }
+.input::placeholder { color: #555; }
+
+.label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.tab-selected {
+  background: #fff;
+  color: #0a0a0a;
+  font-weight: 500;
 }
