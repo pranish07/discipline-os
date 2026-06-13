@@ -29,8 +29,9 @@ app.get('/api/health', (req, res) => {
 app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none } .swagger-ui { background: #0a0a0a }',
+  customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'DisciplineOS API Docs',
+  customJsStr: '(function(){var o=new MutationObserver(function(){document.documentElement.classList.remove("dark-mode")});o.observe(document.documentElement,{attributes:!0,attributeFilter:["class"]});document.documentElement.classList.remove("dark-mode")})()',
 }));
 
 app.use('/api/goals', goalsRouter);
