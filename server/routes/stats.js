@@ -15,7 +15,7 @@ router.use(authMiddleware);
  *     parameters:
  *       - in: query
  *         name: period
- *         schema: { type: string, enum: [day, week, month, year] }
+ *         schema: { type: string, enum: [today, yesterday, week, month] }
  *         description: Period for aggregated stats
  *     responses:
  *       200:

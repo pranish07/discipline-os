@@ -1,39 +1,40 @@
 import { supabase } from '../supabase/supabaseClient.js';
 
 export async function getOverallStats(req, res) {
-  const { period = 'day' } = req.query;
+  const { period = 'today' } = req.query;
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   let startDate;
+  let endDate = today;
 
   switch (period) {
-    case 'day':
+    case 'today':
       startDate = today;
       break;
+    case 'yesterday': {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 1);
+      startDate = d.toISOString().split('T')[0];
+      endDate = startDate;
+      break;
+    }
     case 'week':
       startDate = new Date(now);
-      startDate.setDate(now.getDate() - 7);
+      startDate.setDate(now.getDate() - now.getDay());
       startDate = startDate.toISOString().split('T')[0];
       break;
     case 'month':
-      startDate = new Date(now);
-      startDate.setMonth(now.getMonth() - 1);
-      startDate = startDate.toISOString().split('T')[0];
-      break;
-    case 'year':
-      startDate = new Date(now);
-      startDate.setFullYear(now.getFullYear() - 1);
-      startDate = startDate.toISOString().split('T')[0];
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
       break;
     default:
       startDate = today;
   }
 
   const [sleepData, tasksData, pmoData, exerciseData] = await Promise.all([
-    supabase.from('sleep_logs').select('*').eq('user_id', req.user.id).gte('date', startDate).order('date', { ascending: true }),
-    supabase.from('daily_tasks').select('*').eq('user_id', req.user.id).gte('date', startDate).order('date', { ascending: true }),
-    supabase.from('pmo_logs').select('*').eq('user_id', req.user.id).gte('relapsed_at', startDate),
-    supabase.from('exercise_logs').select('*').eq('user_id', req.user.id).gte('date', startDate),
+    supabase.from('sleep_logs').select('*').eq('user_id', req.user.id).gte('date', startDate).lte('date', endDate).order('date', { ascending: true }),
+    supabase.from('daily_tasks').select('*').eq('user_id', req.user.id).gte('date', startDate).lte('date', endDate).order('date', { ascending: true }),
+    supabase.from('pmo_logs').select('*').eq('user_id', req.user.id).gte('relapsed_at', startDate).lte('relapsed_at', endDate + 'T23:59:59Z'),
+    supabase.from('exercise_logs').select('*').eq('user_id', req.user.id).gte('date', startDate).lte('date', endDate),
   ]);
 
   const sleep = sleepData.data || [];

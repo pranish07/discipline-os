@@ -1,8 +1,30 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { SleepStore, TaskStore, PMOStore, ExerciseStore, ScreenStore, GoalStore } from '../utils/storage.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-const subTabs = ['Sleep', 'Tasks', 'PMO', 'Exercise', 'Screen', 'Goals'];
+const subTabs = ['sleep', 'tasks', 'pmo', 'exercise', 'screen', 'goals'];
+
+const subTabLabels = {
+  sleep: 'Sleep', tasks: 'Tasks', pmo: 'PMO', exercise: 'Exercise', screen: 'Screen', goals: 'Goals',
+};
+
+const TIME_OPTIONS = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 30) {
+    const val = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const label = h === 0 ? `12:${String(m).padStart(2, '0')} AM` : h < 12 ? `${h}:${String(m).padStart(2, '0')} AM` : h === 12 ? `12:${String(m).padStart(2, '0')} PM` : `${h - 12}:${String(m).padStart(2, '0')} PM`;
+    TIME_OPTIONS.push({ val, label });
+  }
+}
+
+function TimeSelect({ value, onChange, ...props }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} className="input" style={{ width: '100%' }} {...props}>
+      {TIME_OPTIONS.map(o => <option key={o.val} value={o.val}>{o.label}</option>)}
+    </select>
+  );
+}
 
 function fmtHM(m) {
   if (m == null) return '--';
@@ -47,10 +69,10 @@ function SleepSection() {
           <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" style={{ width: 'auto' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <div><label className="label">Target Wake</label><input type="time" value={tw} onChange={e => setTw(e.target.value)} className="input" /></div>
-          <div><label className="label">Actual Wake</label><input type="time" value={aw} onChange={e => setAw(e.target.value)} className="input" /></div>
-          <div><label className="label">Target Sleep</label><input type="time" value={ts} onChange={e => setTs(e.target.value)} className="input" /></div>
-          <div><label className="label">Actual Sleep</label><input type="time" value={as} onChange={e => setAs(e.target.value)} className="input" /></div>
+          <div><label className="label">Target Wake</label><TimeSelect value={tw} onChange={setTw} /></div>
+          <div><label className="label">Actual Wake</label><TimeSelect value={aw} onChange={setAw} /></div>
+          <div><label className="label">Target Sleep</label><TimeSelect value={ts} onChange={setTs} /></div>
+          <div><label className="label">Actual Sleep</label><TimeSelect value={as} onChange={setAs} /></div>
         </div>
         <button onClick={save} className="btn btn-primary">Save</button>
       </div>
@@ -159,8 +181,8 @@ function PMOSection() {
 
 function ExerciseSection() {
   const [schedule, setSchedule] = useState([]);
-  const [weekLogs, setWeekLogs] = useState([]);
   const [stats, setStats] = useState(null);
+  const [notes, setNotes] = useState('');
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -189,18 +211,22 @@ function ExerciseSection() {
     const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
     const key = d.toISOString().split('T')[0];
     const sched = schedule.find(s => s.day_of_week === i);
-    const log = ExerciseStore.logs().find(l => l.date === key);
-    week.push({ date: key, day: days[i], schedule: sched, log });
+    week.push({ date: key, day: days[i], schedule: sched });
   }
+
+  const todayKey = now.toISOString().split('T')[0];
+  const todayLog = ExerciseStore.logs().find(l => l.date === todayKey && l.status === 'done');
+  useEffect(() => {
+    if (todayLog) setNotes(todayLog.notes || '');
+  }, [todayLog]);
 
   function logToday() {
     const key = now.toISOString().split('T')[0];
     const dow = now.getDay();
     const sched = schedule.find(s => s.day_of_week === dow);
     if (!sched || sched.is_rest_day) return;
-    ExerciseStore.log({ date: key, schedule_id: sched.day_of_week, status: 'done' });
+    ExerciseStore.log({ date: key, schedule_id: sched.day_of_week, status: 'done', notes: notes || null });
     setStats(ExerciseStore.stats('week'));
-    setWeekLogs(ExerciseStore.logs());
   }
 
   const s = stats || { totalDone: 0, totalScheduled: 0, currentStreak: 0 };
@@ -226,7 +252,10 @@ function ExerciseSection() {
             );
           })}
         </div>
-        <button onClick={logToday} className="btn btn-primary" style={{ marginTop: 12 }}>Log today's workout</button>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+          <input className="input" placeholder="e.g. 20 x 5 sets, 10 reps" value={notes} onChange={e => setNotes(e.target.value)} style={{ flex: 1 }} />
+          <button onClick={logToday} className="btn btn-primary">Log workout</button>
+        </div>
       </div>
 
       <div className="card">
@@ -242,15 +271,23 @@ function ExerciseSection() {
 function ScreenSection() {
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
+  const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const log = ScreenStore.get(date);
 
   useEffect(() => {
-    if (log) setMinutes(String(log.total_minutes));
+    if (log) {
+      setHours(String(Math.floor(log.total_minutes / 60)));
+      setMinutes(String(log.total_minutes % 60));
+    } else {
+      setHours('');
+      setMinutes('');
+    }
   }, [date, log]);
 
   function save() {
-    ScreenStore.upsert({ date, total_minutes: parseInt(minutes) || 0 });
+    const total = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
+    ScreenStore.upsert({ date, total_minutes: total });
   }
 
   const now = new Date();
@@ -268,13 +305,14 @@ function ScreenSection() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div className="card">
         <div style={{ marginBottom: 12 }}><input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" style={{ width: 'auto' }} /></div>
-        {log && (
-          <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>Today: {fmtHM(log.total_minutes)}</div>
-        )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'end' }}>
           <div style={{ flex: 1 }}>
+            <label className="label">Hours</label>
+            <input type="number" className="input" value={hours} onChange={e => setHours(e.target.value)} placeholder="e.g. 3" min="0" />
+          </div>
+          <div style={{ flex: 1 }}>
             <label className="label">Minutes</label>
-            <input type="number" className="input" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="e.g. 240" />
+            <input type="number" className="input" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="e.g. 30" min="0" max="59" />
           </div>
           <button onClick={save} className="btn btn-primary" style={{ height: 36 }}>Save</button>
         </div>
@@ -301,7 +339,6 @@ function GoalsSection() {
   const [goals, setGoals] = useState([]);
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
-  const [editing, setEditing] = useState(null);
 
   useEffect(() => { setGoals(GoalStore.list()); }, []);
 
@@ -352,7 +389,9 @@ function GoalsSection() {
 }
 
 export default function Track() {
-  const [sub, setSub] = useState('Sleep');
+  const { subtab } = useParams();
+  const navigate = useNavigate();
+  const current = subTabs.includes(subtab) ? subtab : 'sleep';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -360,24 +399,24 @@ export default function Track() {
         {subTabs.map(st => (
           <button
             key={st}
-            onClick={() => setSub(st)}
+            onClick={() => navigate(`/track/${st}`)}
             style={{
               padding: '6px 14px', fontSize: 13, fontWeight: 500, borderRadius: 8, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-              background: sub === st ? '#fff' : 'transparent',
-              color: sub === st ? '#0a0a0a' : '#888',
+              background: current === st ? '#fff' : 'transparent',
+              color: current === st ? '#0a0a0a' : '#888',
             }}
           >
-            {st}
+            {subTabLabels[st]}
           </button>
         ))}
       </div>
 
-      {sub === 'Sleep' && <SleepSection />}
-      {sub === 'Tasks' && <TasksSection />}
-      {sub === 'PMO' && <PMOSection />}
-      {sub === 'Exercise' && <ExerciseSection />}
-      {sub === 'Screen' && <ScreenSection />}
-      {sub === 'Goals' && <GoalsSection />}
+      {current === 'sleep' && <SleepSection />}
+      {current === 'tasks' && <TasksSection />}
+      {current === 'pmo' && <PMOSection />}
+      {current === 'exercise' && <ExerciseSection />}
+      {current === 'screen' && <ScreenSection />}
+      {current === 'goals' && <GoalsSection />}
     </div>
   );
 }
