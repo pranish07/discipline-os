@@ -63,6 +63,46 @@ router.get('/me', authMiddleware, (req, res) => {
 
 /**
  * @openapi
+ * /api/auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Register a new user account
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email: { type: string, format: email }
+ *               password: { type: string }
+ *     responses:
+ *       200:
+ *         description: New user session with access token
+ *       400:
+ *         description: Registration failed
+ */
+router.post('/register', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  res.json({
+    user: data.user,
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  });
+});
+
+/**
+ * @openapi
  * /api/auth/refresh:
  *   post:
  *     tags: [Auth]
