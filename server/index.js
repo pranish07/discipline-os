@@ -11,6 +11,7 @@ import tasksRouter from './routes/tasks.js';
 import pmoRouter from './routes/pmo.js';
 import exerciseRouter from './routes/exercise.js';
 import statsRouter from './routes/stats.js';
+import authRouter from './routes/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -25,6 +26,8 @@ app.get('/', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+app.use('/api/auth', authRouter);
 
 app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
 

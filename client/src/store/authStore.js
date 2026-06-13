@@ -7,5 +7,8 @@ export const useAuthStore = create((set) => ({
   setUser: (user) => set({ user }),
   setSession: (session) => set({ session }),
   setLoading: (loading) => set({ loading }),
-  signOut: () => set({ user: null, session: null }),
+  signOut: () => {
+    localStorage.removeItem('auth.token');
+    set({ user: null, session: null });
+  },
 }));

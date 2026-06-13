@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { supabase } from './api/supabase.js';
+import api from './api/axios.js';
 import { useAuthStore } from './store/authStore.js';
 import Layout from './components/Layout.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -17,19 +17,20 @@ export default function App() {
   const { user, loading, setUser, setSession, setLoading } = useAuthStore();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const token = localStorage.getItem('auth.token');
+    if (token) {
+      api.get('/auth/me')
+        .then(({ data }) => {
+          setUser(data.user);
+          setSession({ access_token: token, user: data.user });
+        })
+        .catch(() => {
+          localStorage.removeItem('auth.token');
+        })
+        .finally(() => setLoading(false));
+    } else {
       setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    }
   }, []);
 
   if (loading) {

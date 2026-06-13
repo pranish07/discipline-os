@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../api/supabase.js';
+import api from '../api/axios.js';
+import { useAuthStore } from '../store/authStore.js';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { setUser, setSession } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -15,15 +16,17 @@ export default function Login() {
     setError('');
     setLoading(true);
 
-    const { error: authError } = isSignUp
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
-
-    setLoading(false);
-    if (authError) {
-      setError(authError.message);
-    } else {
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      const token = data.access_token;
+      localStorage.setItem('auth.token', token);
+      setUser(data.user);
+      setSession({ access_token: token, refresh_token: data.refresh_token, user: data.user });
       navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -32,9 +35,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold tracking-tight">DISCIPLINE OS</h1>
-          <p className="text-[#a0aec0] text-sm mt-2">
-            {isSignUp ? 'Create your account' : 'Log in to continue'}
-          </p>
+          <p className="text-[#a0aec0] text-sm mt-2">Log in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
@@ -56,8 +57,7 @@ export default function Login() {
               className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 6 characters"
-              minLength={6}
+              placeholder="Password"
               required
             />
           </div>
@@ -71,15 +71,7 @@ export default function Login() {
             className="btn-primary w-full"
             disabled={loading}
           >
-            {loading ? 'Processing...' : isSignUp ? 'Create Account' : 'Log In'}
-          </button>
-
-          <button
-            type="button"
-            className="btn-ghost w-full text-xs"
-            onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-          >
-            {isSignUp ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
+            {loading ? 'Processing...' : 'Log In'}
           </button>
         </form>
       </div>
