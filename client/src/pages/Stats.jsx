@@ -4,6 +4,8 @@ import { useSleepStats } from '../hooks/useSleep.js';
 import { useTaskStats } from '../hooks/useTasks.js';
 import { usePMOStats } from '../hooks/usePMO.js';
 import { useExerciseStats } from '../hooks/useExercise.js';
+import { useScreenTimeStats } from '../hooks/useScreenTime.js';
+import { useYearStore } from '../store/yearStore.js';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, Legend,
@@ -11,12 +13,14 @@ import {
 
 export default function Stats() {
   const [period, setPeriod] = useState('day');
+  const year = useYearStore((s) => s.year);
 
   const { data: overall } = useOverallStats(period);
   const { data: sleepStats } = useSleepStats(period);
   const { data: taskStats } = useTaskStats(period);
   const { data: pmoStats } = usePMOStats();
   const { data: exerciseStats } = useExerciseStats(period);
+  const { data: screenTimeData } = useScreenTimeStats('year', year);
 
   const sleepChartData = (sleepStats || []).map(s => ({
     date: s.date?.slice(5),
@@ -139,6 +143,28 @@ export default function Stats() {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-[#a0aec0] text-sm">No exercise data</div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="text-xs text-[#a0aec0] font-medium uppercase tracking-wider mb-3">Screen Time ({year})</div>
+          <div className="h-48">
+            {screenTimeData?.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={screenTimeData.map(s => ({ date: s.date?.slice(5), hours: s.total_minutes ? Math.round(s.total_minutes / 60 * 10) / 10 : 0 }))}>
+                  <XAxis dataKey="date" tick={{ fill: '#a0aec0', fontSize: 10 }} />
+                  <YAxis tick={{ fill: '#a0aec0', fontSize: 11 }} label={{ value: 'Hours', angle: -90, position: 'insideLeft', fill: '#a0aec0', fontSize: 10 }} />
+                  <Tooltip
+                    contentStyle={{ background: '#1a1a1a', border: '1px solid #2d2d2d', borderRadius: 4 }}
+                    labelStyle={{ color: '#fff' }}
+                    formatter={(value) => [`${value}h`, 'Screen Time']}
+                  />
+                  <Bar dataKey="hours" fill="#805ad5" name="Screen Time" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-[#a0aec0] text-sm">No screen time data</div>
             )}
           </div>
         </div>

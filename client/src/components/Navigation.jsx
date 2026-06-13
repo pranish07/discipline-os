@@ -17,7 +17,7 @@ export default function Navigation() {
   const setYear = useYearStore((s) => s.setYear);
   const currentYear = new Date().getFullYear();
   const years = [];
-  for (let y = currentYear + 1; y >= 2024; y--) {
+  for (let y = currentYear; y >= 2026; y--) {
     years.push(y);
   }
 

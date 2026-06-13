@@ -3,6 +3,7 @@ import { useSleepLog, useUpsertSleepLog } from '../hooks/useSleep.js';
 import { useTasks } from '../hooks/useTasks.js';
 import { usePMOStats } from '../hooks/usePMO.js';
 import { useExerciseStats } from '../hooks/useExercise.js';
+import { useScreenTimeLog } from '../hooks/useScreenTime.js';
 import { format, parseISO } from 'date-fns';
 
 const today = format(new Date(), 'yyyy-MM-dd');
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const { data: tasks } = useTasks(today);
   const { data: pmoStats } = usePMOStats();
   const { data: exerciseStats } = useExerciseStats('week');
+  const { data: screenTime } = useScreenTimeLog(today);
   const upsertSleep = useUpsertSleepLog();
 
   const message = motivationalMessages[new Date().getDay() % motivationalMessages.length];
@@ -128,6 +130,20 @@ export default function Dashboard() {
               <span className="text-[#a0aec0]">Streak</span>
               <span className={exerciseStats?.currentStreak > 0 ? 'text-[#38a169]' : 'text-[#a0aec0]'}>
                 {exerciseStats?.currentStreak || 0} days
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="text-xs text-[#a0aec0] font-medium uppercase tracking-wider mb-3">Screen Time</div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[#a0aec0]">Today</span>
+              <span>
+                {screenTime?.total_minutes != null
+                  ? `${Math.floor(screenTime.total_minutes / 60)}h ${screenTime.total_minutes % 60}m`
+                  : '--'}
               </span>
             </div>
           </div>
