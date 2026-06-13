@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { background: #0a0a0a; color: white; font-family: Inter, sans-serif; padding: 12px; margin: 0; }
+    .streak { font-size: 36px; font-weight: 700; }
+    .label { color: #a0aec0; font-size: 12px; }
+    .task { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #2d2d2d; }
+  </style>
+</head>
+<body>
+  <div class="streak">0 days</div>
+  <div class="label">clean streak</div>
+  <div style="margin-top:12px">
+    <div class="task"><span>Task 1</span><span>--</span></div>
+    <div class="task"><span>Task 2</span><span>--</span></div>
+    <div class="task"><span>Task 3</span><span>--</span></div>
+  </div>
+  <script>
+    fetch('/api/pmo/stats')
+      .then(r => r.json())
+      .then(d => { document.querySelector('.streak').textContent = d.currentStreak + ' days'; })
+      .catch(() => {});
+  </script>
+</body>
+</html>

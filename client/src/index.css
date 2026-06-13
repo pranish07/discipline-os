@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0a0a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2d2d2d;
+    border-radius: 3px;
+  }
+
+  input, textarea, select {
+    outline: none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-[#1a1a1a] border border-[#2d2d2d] rounded p-4;
+  }
+
+  .btn {
+    @apply px-4 py-2 text-sm font-medium rounded transition-colors duration-150;
+  }
+
+  .btn-primary {
+    @apply btn bg-white text-black hover:bg-gray-200;
+  }
+
+  .btn-danger {
+    @apply btn bg-[#e53e3e] text-white hover:bg-red-600;
+  }
+
+  .btn-ghost {
+    @apply btn border border-[#2d2d2d] text-[#a0aec0] hover:bg-[#1a1a1a] hover:text-white;
+  }
+
+  .input {
+    @apply w-full bg-[#0a0a0a] border border-[#2d2d2d] rounded px-3 py-2 text-white text-sm focus:border-white/30 transition-colors;
+  }
+
+  .label {
+    @apply text-xs text-[#a0aec0] font-medium uppercase tracking-wider mb-1 block;
+  }
+}
