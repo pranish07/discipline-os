@@ -13,8 +13,9 @@ const motivationalMessages = [
   'Stay locked in.',
   'Discipline is freedom.',
   'One day at a time.',
-  'Embrace the grind.',
-  'No excuses.',
+  'Into the summit of the gods',
+  'No excuses. Do the work.',
+  'Absolute freedom is waiting',
 ];
 
 export default function Dashboard() {
