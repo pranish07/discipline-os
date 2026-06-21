@@ -42,7 +42,8 @@ async function seed() {
   if (sleepErr) console.error('Sleep seed error:', sleepErr.message);
   else console.log(`  ✓ ${sleepLogs.length} sleep logs`);
 
-  // ── Daily Tasks (14 days, 3 tasks + notes per day) ──
+  // ── Daily Tasks (14 days, 3 tasks per day) + Notes (task_number 0) ──
+  const notes = [];
   const tasks = [];
   const taskTitles = [
     ['Morning meditation', 'Read 20 pages', 'Exercise'],
@@ -79,12 +80,11 @@ async function seed() {
   for (let i = 13; i >= 0; i--) {
     const date = daysAgo(i);
     const titles = taskTitles[i % taskTitles.length];
-    tasks.push({
+    notes.push({
       user_id: userId, date,
       task_number: 0,
       title: '.notes',
-      priority: 'Medium',
-      status: 'done',
+      priority: 'Medium', status: 'done',
       notes: noteTexts[i % noteTexts.length],
     });
     for (let j = 0; j < 3; j++) {
@@ -99,9 +99,14 @@ async function seed() {
       });
     }
   }
+  // Insert notes separately (may fail if check constraint exists — that's OK)
+  const { error: notesErr } = await supabase.from('daily_tasks').insert(notes);
+  if (notesErr) console.error('Notes seed error (non-fatal):', notesErr.message);
+  else console.log(`  ✓ ${notes.length} notes entries`);
+
   const { error: tasksErr } = await supabase.from('daily_tasks').upsert(tasks, { onConflict: 'user_id,date,task_number' });
   if (tasksErr) console.error('Tasks seed error:', tasksErr.message);
-  else console.log(`  ✓ ${tasks.length} daily tasks (${tasks.length - 14} notes)`);
+  else console.log(`  ✓ ${tasks.length} daily tasks`);
 
   // ── Life Goals ──
   const goals = [
@@ -115,7 +120,7 @@ async function seed() {
   if (goalsErr) console.error('Goals seed error:', goalsErr.message);
   else console.log(`  ✓ ${goals.length} life goals`);
 
-  // ── Exercise Schedule ──
+  // ── Exercise Schedule (delete + insert to avoid unique constraint issues) ──
   const schedule = [
     { user_id: userId, day_of_week: 1, exercise_name: 'Push Day', scheduled_time: '07:00', is_rest_day: false },
     { user_id: userId, day_of_week: 2, exercise_name: 'Pull Day', scheduled_time: '07:00', is_rest_day: false },
@@ -125,7 +130,8 @@ async function seed() {
     { user_id: userId, day_of_week: 6, exercise_name: '', scheduled_time: null, is_rest_day: true },
     { user_id: userId, day_of_week: 0, exercise_name: '', scheduled_time: null, is_rest_day: true },
   ];
-  const { error: schedErr } = await supabase.from('exercise_schedule').upsert(schedule, { onConflict: 'user_id,day_of_week' });
+  await supabase.from('exercise_schedule').delete().eq('user_id', userId);
+  const { error: schedErr } = await supabase.from('exercise_schedule').insert(schedule);
   if (schedErr) console.error('Schedule seed error:', schedErr.message);
   else console.log(`  ✓ ${schedule.length} exercise schedule entries`);
 
@@ -149,7 +155,8 @@ async function seed() {
     }
   }
   if (exerciseLogs.length) {
-    const { error: exErr } = await supabase.from('exercise_logs').upsert(exerciseLogs, { onConflict: 'user_id,date,schedule_id' });
+    await supabase.from('exercise_logs').delete().eq('user_id', userId).gte('date', daysAgo(14));
+    const { error: exErr } = await supabase.from('exercise_logs').insert(exerciseLogs);
     if (exErr) console.error('Exercise logs seed error:', exErr.message);
     else console.log(`  ✓ ${exerciseLogs.length} exercise logs`);
   }
