@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SleepAPI, TaskAPI, PMOAPI, ExerciseAPI, ScreenAPI, GoalAPI } from '../utils/api.js';
+import { SleepAPI, TaskAPI, PMOAPI, ExerciseAPI, ScreenAPI, GoalAPI, NotesAPI } from '../utils/api.js';
 
 const TIME_OPTIONS = [];
 for (let h = 0; h < 24; h++) {
@@ -111,21 +111,25 @@ function TasksSection({ date }) {
   const [tasks, setTasks] = useState([]);
   const [titles, setTitles] = useState(['', '', '']);
   const [notes, setNotes] = useState('');
-  const [showForm, setShowForm] = useState(false);
 
   const load = useCallback(async () => {
-    const t = await TaskAPI.byDate(date).catch(() => []);
+    const [t, n] = await Promise.all([
+      TaskAPI.byDate(date).catch(() => []),
+      NotesAPI.get(date).catch(() => ({ content: '' })),
+    ]);
     setTasks(t);
-    if (t.length) setTitles(t.map(x => x.title));
-    else { setTitles(['', '', '']); setShowForm(false); }
-    const noteTask = t.find(x => x.task_number === 0);
-    setNotes(noteTask?.notes || '');
+    const regular = t.filter(x => x.task_number > 0);
+    if (regular.length) setTitles(regular.map(x => x.title));
+    else setTitles(['', '', '']);
+    setNotes(n.content || '');
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
 
   async function saveNotes() {
-    await TaskAPI.upsert({ date, task_number: 0, title: '.notes', notes: notes || null });
+    await NotesAPI.upsert({ date, content: notes || '' });
+    const n = await NotesAPI.get(date).catch(() => ({ content: '' }));
+    setNotes(n.content || '');
   }
 
   async function saveTask(num) {
@@ -148,11 +152,7 @@ function TasksSection({ date }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5' }}>Tasks</div>
       <div className="card">
-        {tasks.length === 0 && !showForm ? (
-          <div style={{ textAlign: 'center', padding: '16px' }}>
-            <button onClick={() => setShowForm(true)} className="btn btn-primary">Add Tasks</button>
-          </div>
-        ) : [1, 2, 3].map(num => {
+        {[1, 2, 3].map(num => {
           const task = tasks.find(t => t.task_number === num);
           return (
             <div key={num} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -260,8 +260,9 @@ function PMOSection() {
 
 function ExerciseSection() {
   const [schedule, setSchedule] = useState([]);
-  const [notes, setNotes] = useState('');
-  const [todayLog, setTodayLog] = useState(null);
+  const [logs, setLogs] = useState({});
+  const [noteInputs, setNoteInputs] = useState({});
+  const [newExName, setNewExName] = useState({});
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -280,74 +281,101 @@ function ExerciseSection() {
       s = await ExerciseAPI.saveSchedule(defaults);
     }
     setSchedule(s);
-    const key = new Date().toISOString().split('T')[0];
-    const logs = await ExerciseAPI.logs(key, key).catch(() => []);
-    const tl = logs.find(l => l.status === 'done');
-    setTodayLog(tl || null);
-    if (tl) setNotes(tl.notes || '');
+
+    const now = new Date();
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+    const startKey = weekStart.toISOString().split('T')[0];
+    const endKey = weekEnd.toISOString().split('T')[0];
+
+    const allLogs = await ExerciseAPI.logs(startKey, endKey).catch(() => []);
+    const logMap = {};
+    const noteMap = {};
+    for (const l of allLogs) {
+      const key = `${l.schedule_id}_${l.date}`;
+      logMap[key] = l;
+      if (l.notes) noteMap[key] = l.notes;
+    }
+    setLogs(logMap);
+    setNoteInputs(noteMap);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const now = new Date();
+  const todayKey = now.toISOString().split('T')[0];
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+
+  async function toggleExercise(date, scheduleId) {
+    const key = `${scheduleId}_${date}`;
+    if (logs[key]) {
+      await ExerciseAPI.removeLog(logs[key].id);
+      const next = { ...logs };
+      delete next[key];
+      setLogs(next);
+    } else {
+      const log = await ExerciseAPI.log({ date, schedule_id: scheduleId, status: 'done', notes: noteInputs[key] || null });
+      setLogs(prev => ({ ...prev, [key]: log }));
+    }
+  }
+
+  async function saveExerciseNotes(date, scheduleId) {
+    const key = `${scheduleId}_${date}`;
+    const log = logs[key];
+    if (!log) return;
+    const updated = await ExerciseAPI.updateLog(log.id, { notes: noteInputs[key] || null });
+    setLogs(prev => ({ ...prev, [key]: updated }));
+  }
+
+  async function addExercise(dow) {
+    const name = newExName[dow];
+    if (!name?.trim()) return;
+    const item = await ExerciseAPI.addScheduleItem({ day_of_week: dow, exercise_name: name.trim() });
+    setSchedule(prev => [...prev, item]);
+    setNewExName(prev => ({ ...prev, [dow]: '' }));
+  }
+
+  async function removeExercise(id) {
+    await ExerciseAPI.deleteScheduleItem(id);
+    setSchedule(prev => prev.filter(x => x.id !== id));
+  }
+
   const week = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart); d.setDate(weekStart.getDate() + i);
     const key = d.toISOString().split('T')[0];
-    const sched = schedule.find(x => x.day_of_week === i);
-    week.push({ date: key, day: days[i], schedule: sched });
-  }
-
-  async function logToday() {
-    const key = now.toISOString().split('T')[0];
-    const dow = now.getDay();
-    const sched = schedule.find(x => x.day_of_week === dow);
-    if (!sched || sched.is_rest_day) return;
-    await ExerciseAPI.log({ date: key, schedule_id: sched.id, status: 'done', notes: notes || null });
-    const logs = await ExerciseAPI.logs(key, key);
-    setTodayLog(logs.find(l => l.status === 'done') || null);
-  }
-
-  async function removeTodayLog() {
-    if (!todayLog?.id) return;
-    await ExerciseAPI.removeLog(todayLog.id);
-    setTodayLog(null);
-    setNotes('');
+    const exercises = schedule.filter(x => x.day_of_week === i);
+    week.push({ date: key, day: days[i], dayOfWeek: i, exercises });
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5' }}>Exercise</div>
-      <div className="card">
-        <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>This Week</div>
-        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
-          {week.map(w => {
-            const done = /* will refresh from stats */ false;
-            return (
-              <div key={w.date} style={{
-                flexShrink: 0, width: 64, height: 64, borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-                background: '#111',
-                color: '#888',
-                border: w.date === now.toISOString().split('T')[0] ? '2px solid #fff' : '1px solid #333',
-                fontSize: 11, fontWeight: 500,
-              }}>
-                <span>{w.day}</span>
-                <span>{w.schedule?.is_rest_day ? '—' : ''}</span>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-          <input className="input" placeholder="e.g. 20 x 5 sets, 10 reps" value={notes} onChange={e => setNotes(e.target.value)} style={{ flex: 1 }} />
-          {todayLog ? (
-            <button onClick={removeTodayLog} className="btn btn-danger">Remove</button>
-          ) : (
-            <button onClick={logToday} className="btn btn-primary">Log workout</button>
-          )}
-        </div>
-      </div>
-
+      {week.map(w => {
+        const isToday = w.date === todayKey;
+        return (
+          <div key={w.date} className="card" style={{ padding: 12, border: isToday ? '1px solid #555' : undefined }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#e5e5e5', marginBottom: 8 }}>{w.day}</div>
+            {w.exercises.length === 0 && <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>No exercises</div>}
+            {w.exercises.map(ex => {
+              const key = `${ex.id}_${w.date}`;
+              return (
+                <div key={ex.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <input type="checkbox" checked={!!logs[key]} onChange={() => toggleExercise(w.date, ex.id)} style={{ accentColor: '#4ade80' }} />
+                  <span style={{ flex: 1, fontSize: 13, color: logs[key] ? '#555' : '#ccc', textDecoration: logs[key] ? 'line-through' : 'none' }}>{ex.exercise_name}</span>
+                  <input className="input" placeholder="Notes" value={noteInputs[key] || ''} onChange={e => setNoteInputs(prev => ({ ...prev, [key]: e.target.value }))} style={{ width: 120, fontSize: 12 }} />
+                  {logs[key] && <button onClick={() => saveExerciseNotes(w.date, ex.id)} className="btn btn-ghost" style={{ padding: '2px 6px', fontSize: 11 }}>Save</button>}
+                  <button onClick={() => removeExercise(ex.id)} className="btn btn-ghost" style={{ padding: '2px 6px', fontSize: 11, color: '#f87171' }}>✕</button>
+                </div>
+              );
+            })}
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <input className="input" placeholder="Add exercise…" value={newExName[w.dayOfWeek] || ''} onChange={e => setNewExName(prev => ({ ...prev, [w.dayOfWeek]: e.target.value }))} style={{ flex: 1, fontSize: 12 }} />
+              <button onClick={() => addExercise(w.dayOfWeek)} className="btn btn-primary" style={{ padding: '4px 10px', fontSize: 12 }}>Add</button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -356,13 +384,13 @@ function ScreenSection({ date }) {
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [log, setLog] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     const d = await ScreenAPI.get(date).catch(() => null);
     setLog(d);
-    if (d) { setHours(String(Math.floor(d.total_minutes / 60))); setMinutes(String(d.total_minutes % 60)); setShowForm(false); }
-    else { setHours(''); setMinutes(''); setShowForm(false); }
+    if (d) { setHours(String(Math.floor(d.total_minutes / 60))); setMinutes(String(d.total_minutes % 60)); setEditing(false); }
+    else { setHours(''); setMinutes(''); setEditing(false); }
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
@@ -379,15 +407,28 @@ function ScreenSection({ date }) {
     await load();
   }
 
+  async function handleEdit() {
+    const d = await ScreenAPI.get(date).catch(() => null);
+    if (d) { setHours(String(Math.floor(d.total_minutes / 60))); setMinutes(String(d.total_minutes % 60)); }
+    setEditing(true);
+  }
+
+  function fmtScreen(m) {
+    if (m == null) return '--';
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    return h > 0 ? `${h}h ${min}m` : `${min}m`;
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5' }}>Screen Time</div>
       <div className="card">
-        {!log && !showForm ? (
+        {!log && !editing ? (
           <div style={{ textAlign: 'center', padding: '16px' }}>
-            <button onClick={() => setShowForm(true)} className="btn btn-primary">Add Screen Time</button>
+            <button onClick={() => setEditing(true)} className="btn btn-primary">Add Screen Time</button>
           </div>
-        ) : (
+        ) : editing ? (
           <div style={{ display: 'flex', gap: 8, alignItems: 'end' }}>
             <div style={{ flex: 1 }}>
               <label className="label">Hours</label>
@@ -398,7 +439,15 @@ function ScreenSection({ date }) {
               <input type="number" className="input" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="e.g. 30" min="0" max="59" />
             </div>
             <button onClick={save} className="btn btn-primary" style={{ height: 36 }}>Save</button>
-            {log && <button onClick={remove} className="btn btn-danger" style={{ height: 36 }}>Delete</button>}
+            <button onClick={() => { setEditing(false); load(); }} className="btn btn-ghost" style={{ height: 36 }}>Cancel</button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 15, color: '#e5e5e5' }}>{fmtScreen(log.total_minutes)}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleEdit} className="btn btn-primary" style={{ height: 36 }}>Edit</button>
+              <button onClick={remove} className="btn btn-danger" style={{ height: 36 }}>Delete</button>
+            </div>
           </div>
         )}
       </div>

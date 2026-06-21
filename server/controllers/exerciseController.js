@@ -38,6 +38,47 @@ export async function saveSchedule(req, res) {
   res.json(data);
 }
 
+export async function addScheduleItem(req, res) {
+  const { day_of_week, exercise_name } = req.body;
+  if (day_of_week === undefined || day_of_week === null || !exercise_name?.trim()) {
+    return res.status(400).json({ error: 'day_of_week and exercise_name are required' });
+  }
+  const { data, error } = await supabase
+    .from('exercise_schedule')
+    .insert({ user_id: req.user.id, day_of_week, exercise_name: exercise_name.trim(), is_rest_day: false })
+    .select()
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+}
+
+export async function updateScheduleItem(req, res) {
+  const { id } = req.params;
+  const updates = req.body;
+  delete updates.user_id;
+  delete updates.id;
+  const { data, error } = await supabase
+    .from('exercise_schedule')
+    .update(updates)
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .select()
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json(data);
+}
+
+export async function deleteScheduleItem(req, res) {
+  const { id } = req.params;
+  const { error } = await supabase
+    .from('exercise_schedule')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', req.user.id);
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ success: true });
+}
+
 export async function getLogs(req, res) {
   const { start_date, end_date } = req.query;
   let query = supabase

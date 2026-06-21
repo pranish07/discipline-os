@@ -42,8 +42,7 @@ async function seed() {
   if (sleepErr) console.error('Sleep seed error:', sleepErr.message);
   else console.log(`  ✓ ${sleepLogs.length} sleep logs`);
 
-  // ── Daily Tasks (14 days, 3 tasks per day) + Notes (task_number 0) ──
-  const notes = [];
+  // ── Daily Tasks (14 days, 3 tasks per day) ──
   const tasks = [];
   const taskTitles = [
     ['Morning meditation', 'Read 20 pages', 'Exercise'],
@@ -61,6 +60,26 @@ async function seed() {
     ['Workout', 'Read book', 'Prepare for bed'],
     ['Review week', 'Set next week goals', 'Relax'],
   ];
+  for (let i = 13; i >= 0; i--) {
+    const date = daysAgo(i);
+    const titles = taskTitles[i % taskTitles.length];
+    for (let j = 0; j < 3; j++) {
+      const priorities = ['High', 'Medium', 'Low'];
+      tasks.push({
+        user_id: userId, date,
+        task_number: j + 1,
+        title: titles[j],
+        priority: priorities[j],
+        status: i > 2 ? 'done' : (j === 0 ? 'done' : 'pending'),
+        notes: i > 2 ? 'Completed on time' : null,
+      });
+    }
+  }
+  const { error: tasksErr } = await supabase.from('daily_tasks').upsert(tasks, { onConflict: 'user_id,date,task_number' });
+  if (tasksErr) console.error('Tasks seed error:', tasksErr.message);
+  else console.log(`  ✓ ${tasks.length} daily tasks`);
+
+  // ── Daily Notes (14 days) ──
   const noteTexts = [
     'Felt great today. Woke up early and meditated.',
     'Struggled with focus but pushed through.',
@@ -77,36 +96,16 @@ async function seed() {
     'Good day overall. Stayed disciplined.',
     'Reflecting on the week. Steady progress.',
   ];
+  const dailyNotes = [];
   for (let i = 13; i >= 0; i--) {
-    const date = daysAgo(i);
-    const titles = taskTitles[i % taskTitles.length];
-    notes.push({
-      user_id: userId, date,
-      task_number: 0,
-      title: '.notes',
-      priority: 'Medium', status: 'done',
-      notes: noteTexts[i % noteTexts.length],
+    dailyNotes.push({
+      user_id: userId, date: daysAgo(i),
+      content: noteTexts[i % noteTexts.length],
     });
-    for (let j = 0; j < 3; j++) {
-      const priorities = ['High', 'Medium', 'Low'];
-      tasks.push({
-        user_id: userId, date,
-        task_number: j + 1,
-        title: titles[j],
-        priority: priorities[j],
-        status: i > 2 ? 'done' : (j === 0 ? 'done' : 'pending'),
-        notes: i > 2 ? 'Completed on time' : null,
-      });
-    }
   }
-  // Insert notes separately (may fail if check constraint exists — that's OK)
-  const { error: notesErr } = await supabase.from('daily_tasks').insert(notes);
-  if (notesErr) console.error('Notes seed error (non-fatal):', notesErr.message);
-  else console.log(`  ✓ ${notes.length} notes entries`);
-
-  const { error: tasksErr } = await supabase.from('daily_tasks').upsert(tasks, { onConflict: 'user_id,date,task_number' });
-  if (tasksErr) console.error('Tasks seed error:', tasksErr.message);
-  else console.log(`  ✓ ${tasks.length} daily tasks`);
+  const { error: notesErr } = await supabase.from('daily_notes').upsert(dailyNotes, { onConflict: 'user_id,date' });
+  if (notesErr) console.error('Notes seed error:', notesErr.message);
+  else console.log(`  ✓ ${dailyNotes.length} daily notes`);
 
   // ── Life Goals ──
   const goals = [
@@ -120,38 +119,47 @@ async function seed() {
   if (goalsErr) console.error('Goals seed error:', goalsErr.message);
   else console.log(`  ✓ ${goals.length} life goals`);
 
-  // ── Exercise Schedule (delete + insert to avoid unique constraint issues) ──
-  const schedule = [
-    { user_id: userId, day_of_week: 1, exercise_name: 'Push Day', scheduled_time: '07:00', is_rest_day: false },
-    { user_id: userId, day_of_week: 2, exercise_name: 'Pull Day', scheduled_time: '07:00', is_rest_day: false },
-    { user_id: userId, day_of_week: 3, exercise_name: 'Cardio', scheduled_time: '06:30', is_rest_day: false },
-    { user_id: userId, day_of_week: 4, exercise_name: 'Leg Day', scheduled_time: '07:00', is_rest_day: false },
-    { user_id: userId, day_of_week: 5, exercise_name: 'Core & Abs', scheduled_time: '07:00', is_rest_day: false },
-    { user_id: userId, day_of_week: 6, exercise_name: '', scheduled_time: null, is_rest_day: true },
-    { user_id: userId, day_of_week: 0, exercise_name: '', scheduled_time: null, is_rest_day: true },
-  ];
+  // ── Exercise Schedule (multiple per day) ──
   await supabase.from('exercise_schedule').delete().eq('user_id', userId);
+  const schedule = [
+    // Monday
+    { user_id: userId, day_of_week: 1, exercise_name: 'Push-ups (15×3)', is_rest_day: false },
+    { user_id: userId, day_of_week: 1, exercise_name: 'Bench Press (10×4)', is_rest_day: false },
+    // Tuesday
+    { user_id: userId, day_of_week: 2, exercise_name: 'Pull-ups (8×3)', is_rest_day: false },
+    { user_id: userId, day_of_week: 2, exercise_name: 'Rows (12×4)', is_rest_day: false },
+    // Wednesday
+    { user_id: userId, day_of_week: 3, exercise_name: 'Running (30min)', is_rest_day: false },
+    { user_id: userId, day_of_week: 3, exercise_name: 'Jump Rope (10min)', is_rest_day: false },
+    // Thursday
+    { user_id: userId, day_of_week: 4, exercise_name: 'Squats (12×4)', is_rest_day: false },
+    { user_id: userId, day_of_week: 4, exercise_name: 'Lunges (10×3)', is_rest_day: false },
+    // Friday
+    { user_id: userId, day_of_week: 5, exercise_name: 'Planks (3×60s)', is_rest_day: false },
+    { user_id: userId, day_of_week: 5, exercise_name: 'Crunches (20×3)', is_rest_day: false },
+    // Saturday
+    { user_id: userId, day_of_week: 6, exercise_name: '', is_rest_day: true },
+    // Sunday
+    { user_id: userId, day_of_week: 0, exercise_name: '', is_rest_day: true },
+  ];
   const { error: schedErr } = await supabase.from('exercise_schedule').insert(schedule);
   if (schedErr) console.error('Schedule seed error:', schedErr.message);
   else console.log(`  ✓ ${schedule.length} exercise schedule entries`);
 
   // ── Exercise Logs (14 days) ──
   const exerciseLogs = [];
+  const { data: allSched } = await supabase.from('exercise_schedule').select('id, day_of_week').eq('user_id', userId);
   for (let i = 13; i >= 0; i--) {
     const date = daysAgo(i);
     const dayOfWeek = new Date(date).getDay();
-    const sched = schedule.find(s => s.day_of_week === dayOfWeek);
-    if (sched && !sched.is_rest_day) {
-      const { data: schedRow } = await supabase.from('exercise_schedule').select('id').eq('user_id', userId).eq('day_of_week', dayOfWeek).single();
-      if (schedRow) {
-        exerciseLogs.push({
-          user_id: userId,
-          date,
-          schedule_id: schedRow.id,
-          status: i > 2 ? 'done' : (Math.random() > 0.5 ? 'done' : 'skipped'),
-          notes: i > 2 ? 'Great session' : null,
-        });
-      }
+    const dayEntries = (allSched || []).filter(s => s.day_of_week === dayOfWeek && !s.is_rest_day);
+    for (const entry of dayEntries) {
+      exerciseLogs.push({
+        user_id: userId, date,
+        schedule_id: entry.id,
+        status: i > 2 ? 'done' : (Math.random() > 0.5 ? 'done' : 'skipped'),
+        notes: i > 2 ? 'Great session' : null,
+      });
     }
   }
   if (exerciseLogs.length) {
@@ -201,7 +209,7 @@ async function deleteSeed() {
   const userId = await getUserId();
   console.log(`Deleting seed data for user: ${EMAIL}`);
 
-  const tables = ['sleep_logs', 'daily_tasks', 'life_goals', 'exercise_schedule', 'exercise_logs', 'pmo_logs', 'screen_time_logs'];
+  const tables = ['sleep_logs', 'daily_tasks', 'daily_notes', 'life_goals', 'exercise_schedule', 'exercise_logs', 'pmo_logs', 'screen_time_logs'];
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('user_id', userId);
     if (error) console.error(`Error deleting from ${table}:`, error.message);

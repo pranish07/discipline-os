@@ -29,6 +29,9 @@ export const PMOAPI = {
 export const ExerciseAPI = {
   schedule: () => api.get('/exercise/schedule').then(r => r.data),
   saveSchedule: (schedule) => api.post('/exercise/schedule', { schedule }).then(r => r.data),
+  addScheduleItem: (data) => api.post('/exercise/schedule/item', data).then(r => r.data),
+  updateScheduleItem: (id, data) => api.put(`/exercise/schedule/item/${id}`, data).then(r => r.data),
+  deleteScheduleItem: (id) => api.delete(`/exercise/schedule/item/${id}`).then(r => r.data),
   logs: (start, end) => api.get('/exercise/logs', { params: { start_date: start, end_date: end } }).then(r => r.data),
   log: (data) => api.post('/exercise/logs', data).then(r => r.data),
   updateLog: (id, data) => api.put(`/exercise/logs/${id}`, data).then(r => r.data),
@@ -54,4 +57,9 @@ export const GoalAPI = {
 
 export const StatsAPI = {
   get: (period) => api.get('/stats', { params: { period } }).then(r => r.data),
+};
+
+export const NotesAPI = {
+  get: (date) => api.get('/notes', { params: { date } }).then(r => r.data),
+  upsert: (data) => api.post('/notes', data).then(r => r.data),
 };

@@ -13,6 +13,7 @@ import exerciseRouter from './routes/exercise.js';
 import statsRouter from './routes/stats.js';
 import authRouter from './routes/auth.js';
 import screenTimeRouter from './routes/screenTime.js';
+import notesRouter from './routes/notes.js';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -45,6 +46,7 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/pmo', pmoRouter);
 app.use('/api/exercise', exerciseRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/notes', notesRouter);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
