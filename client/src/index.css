@@ -88,3 +88,9 @@ input, textarea, select, button { font-family: inherit; }
   color: #0a0a0a;
   font-weight: 500;
 }
+
+.show-mobile { display: none; }
+@media (max-width: 480px) {
+  .hide-mobile { display: none; }
+  .show-mobile { display: inline; }
+}

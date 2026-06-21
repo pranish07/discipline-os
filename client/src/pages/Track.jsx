@@ -506,7 +506,7 @@ function GoalsSection() {
   async function add() {
     if (!title.trim()) return;
     await GoalAPI.add({ title, description: desc, category: '' });
-    setTitle(''); setDesc('');
+    setTitle(''); setDesc(''); setShowForm(false);
     const g = await GoalAPI.list();
     setGoals(g);
   }
@@ -525,23 +525,25 @@ function GoalsSection() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5' }}>Goals</div>
-      <div className="card">
-        {goals.length === 0 && !showForm ? (
-          <div style={{ textAlign: 'center', padding: '16px' }}>
-            <button onClick={() => setShowForm(true)} className="btn btn-primary">Add Goal</button>
-          </div>
-        ) : (
-        <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5' }}>Goals</div>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="btn btn-primary" style={{ padding: '4px 12px', fontSize: 13 }}>
+            <span className="hide-mobile">Add Goal</span>
+            <span className="show-mobile">+</span>
+          </button>
+        )}
+      </div>
+      {showForm && (
+        <div className="card">
           <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Add Goal</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input className="input" placeholder="Goal title" value={title} onChange={e => setTitle(e.target.value)} />
             <input className="input" placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
             <button onClick={add} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Add</button>
           </div>
-        </>
-        )}
-      </div>
+        </div>
+      )}
 
       {goals.map(g => (
         <div key={g.id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
