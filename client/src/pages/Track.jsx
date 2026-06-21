@@ -302,6 +302,7 @@ function ExerciseSection() {
   const [logs, setLogs] = useState({});
   const [noteInputs, setNoteInputs] = useState({});
   const [newExName, setNewExName] = useState({});
+  const [selectedDay, setSelectedDay] = useState(new Date().getDay());
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -389,8 +390,15 @@ function ExerciseSection() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5' }}>Exercise</div>
-      {week.map(w => {
+      <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5', marginBottom: 4 }}>Exercise</div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {days.map((day, i) => (
+          <button key={i} onClick={() => setSelectedDay(i)} className={selectedDay === i ? 'btn btn-primary' : 'btn btn-ghost'} style={{ flex: 1, minWidth: 48, padding: '6px 4px', fontSize: 12, textAlign: 'center' }}>
+            {day}
+          </button>
+        ))}
+      </div>
+      {week.filter(w => w.dayOfWeek === selectedDay).map(w => {
         const isToday = w.date === todayKey;
         return (
           <div key={w.date} className="card" style={{ padding: 12, border: isToday ? '1px solid #555' : undefined }}>
@@ -530,7 +538,7 @@ function GoalsSection() {
         {!showForm && (
           <button onClick={() => setShowForm(true)} className="btn btn-primary" style={{ padding: '4px 12px', fontSize: 13 }}>
             <span className="hide-mobile">Add Goal</span>
-            <span className="show-mobile">+</span>
+            <span className="show-mobile">Add</span>
           </button>
         )}
       </div>
