@@ -483,9 +483,9 @@ export default function Track() {
         <div style={{ fontSize: 15, fontWeight: 500, color: '#e5e5e5' }}>Track</div>
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" style={{ width: 'auto' }} />
       </div>
+      <GoalsSection />
       <SleepSection date={date} />
       <TasksSection date={date} />
-      <GoalsSection />
       <PMOSection />
       <ExerciseSection />
       <ScreenSection date={date} />

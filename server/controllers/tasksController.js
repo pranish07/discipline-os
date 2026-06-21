@@ -34,8 +34,11 @@ export async function getTasksRange(req, res) {
 
 export async function upsertTask(req, res) {
   const { date, task_number, title, priority, status, notes } = req.body;
-  if (!date || !task_number || !title) {
-    return res.status(400).json({ error: 'Date, task_number, and title are required' });
+  if (!date || task_number === undefined || task_number === null) {
+    return res.status(400).json({ error: 'Date and task_number are required' });
+  }
+  if (task_number !== 0 && !title) {
+    return res.status(400).json({ error: 'Title is required for non-notes tasks' });
   }
 
   const payload = {

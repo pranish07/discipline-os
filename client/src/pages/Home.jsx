@@ -65,6 +65,15 @@ export default function Home() {
       <div style={{ fontSize: 13, color: '#888', marginBottom: -4 }}>{dayName}</div>
       <div style={{ fontSize: 18, fontWeight: 500, fontStyle: 'italic', color: '#555' }}>"{msg}"</div>
 
+      {goals.length > 0 && (
+        <div className="card">
+          <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Life Goals</div>
+          {goals.map(g => (
+            <div key={g.id} style={{ fontSize: 13, color: '#ccc', marginBottom: 4 }}>{g.title}</div>
+          ))}
+        </div>
+      )}
+
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Sleep</div>
         <div style={{ fontSize: 13, color: '#ccc' }}>{sleepSummary()}</div>
@@ -106,15 +115,6 @@ export default function Home() {
           <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>today</div>
         </div>
       </div>
-
-      {goals.length > 0 && (
-        <div className="card">
-          <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Life Goals</div>
-          {goals.map(g => (
-            <div key={g.id} style={{ fontSize: 13, color: '#ccc', marginBottom: 4 }}>{g.title}</div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -42,7 +42,7 @@ async function seed() {
   if (sleepErr) console.error('Sleep seed error:', sleepErr.message);
   else console.log(`  ✓ ${sleepLogs.length} sleep logs`);
 
-  // ── Daily Tasks (14 days, 3 per day) ──
+  // ── Daily Tasks (14 days, 3 tasks + notes per day) ──
   const tasks = [];
   const taskTitles = [
     ['Morning meditation', 'Read 20 pages', 'Exercise'],
@@ -60,14 +60,37 @@ async function seed() {
     ['Workout', 'Read book', 'Prepare for bed'],
     ['Review week', 'Set next week goals', 'Relax'],
   ];
+  const noteTexts = [
+    'Felt great today. Woke up early and meditated.',
+    'Struggled with focus but pushed through.',
+    'Good progress on the project.',
+    'Slept well. Energy was high all day.',
+    'Too much screen time. Need to cut back.',
+    'Productive morning, slow afternoon.',
+    'Went for a walk. Cleared my mind.',
+    'Felt tired but completed everything.',
+    'Great day. Learned something new.',
+    'Could have done better. Tomorrow is a new day.',
+    'Focused and disciplined. Streak alive.',
+    'Skipped workout. Get back on track tomorrow.',
+    'Good day overall. Stayed disciplined.',
+    'Reflecting on the week. Steady progress.',
+  ];
   for (let i = 13; i >= 0; i--) {
     const date = daysAgo(i);
     const titles = taskTitles[i % taskTitles.length];
+    tasks.push({
+      user_id: userId, date,
+      task_number: 0,
+      title: '.notes',
+      priority: 'Medium',
+      status: 'done',
+      notes: noteTexts[i % noteTexts.length],
+    });
     for (let j = 0; j < 3; j++) {
       const priorities = ['High', 'Medium', 'Low'];
       tasks.push({
-        user_id: userId,
-        date,
+        user_id: userId, date,
         task_number: j + 1,
         title: titles[j],
         priority: priorities[j],
@@ -78,7 +101,7 @@ async function seed() {
   }
   const { error: tasksErr } = await supabase.from('daily_tasks').upsert(tasks, { onConflict: 'user_id,date,task_number' });
   if (tasksErr) console.error('Tasks seed error:', tasksErr.message);
-  else console.log(`  ✓ ${tasks.length} daily tasks`);
+  else console.log(`  ✓ ${tasks.length} daily tasks (${tasks.length - 14} notes)`);
 
   // ── Life Goals ──
   const goals = [
