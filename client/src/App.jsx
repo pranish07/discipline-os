@@ -7,7 +7,7 @@ import Login from './pages/Login.jsx';
 
 const tabs = [
   { key: 'home', path: '/home', label: 'Home' },
-  { key: 'track', path: '/track/sleep', label: 'Track' },
+  { key: 'track', path: '/track', label: 'Track' },
   { key: 'stats', path: '/stats', label: 'Stats' },
 ];
 
@@ -92,8 +92,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<Home />} />
-          <Route path="/track" element={<Navigate to="/track/sleep" replace />} />
-          <Route path="/track/:subtab" element={<Track />} />
+          <Route path="/track" element={<Track />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
