@@ -111,6 +111,7 @@ function TasksSection({ date }) {
   const [tasks, setTasks] = useState([]);
   const [titles, setTitles] = useState(['', '', '']);
   const [notes, setNotes] = useState('');
+  const [editingNotes, setEditingNotes] = useState(false);
 
   const load = useCallback(async () => {
     const t = await TaskAPI.byDate(date).catch(() => []);
@@ -120,16 +121,26 @@ function TasksSection({ date }) {
     else setTitles(['', '', '']);
     const task1 = t.find(x => x.task_number === 1);
     setNotes(task1?.notes || '');
+    setEditingNotes(false);
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
 
   async function saveNotes() {
+    if (!notes.trim()) return deleteNotes();
     const task1 = tasks.find(x => x.task_number === 1);
     if (task1) {
-      await TaskAPI.update(task1.id, { notes: notes || null });
+      await TaskAPI.update(task1.id, { notes });
     } else {
-      await TaskAPI.upsert({ date, task_number: 1, title: '.notes', priority: 'Medium', status: 'pending', notes: notes || null });
+      await TaskAPI.upsert({ date, task_number: 1, title: '.notes', priority: 'Medium', status: 'pending', notes });
+    }
+    await load();
+  }
+
+  async function deleteNotes() {
+    const task1 = tasks.find(x => x.task_number === 1);
+    if (task1) {
+      await TaskAPI.update(task1.id, { notes: null });
     }
     await load();
   }
@@ -184,8 +195,27 @@ function TasksSection({ date }) {
 
       <div className="card">
         <div style={{ fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Notes</div>
-        <textarea className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Write your notes here…" style={{ width: '100%', minHeight: 80, resize: 'vertical', marginBottom: 8 }} />
-        <button onClick={saveNotes} className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Save Notes</button>
+        {!notes && !editingNotes ? (
+          <div style={{ textAlign: 'center', padding: '8px' }}>
+            <button onClick={() => setEditingNotes(true)} className="btn btn-primary">Add Notes</button>
+          </div>
+        ) : editingNotes ? (
+          <>
+            <textarea className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Write your notes here…" style={{ width: '100%', minHeight: 80, resize: 'vertical', marginBottom: 8 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={saveNotes} className="btn btn-primary">Save</button>
+              <button onClick={() => { setEditingNotes(false); load(); }} className="btn btn-ghost">Cancel</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, color: '#ccc', marginBottom: 8, minHeight: 40 }}>{notes}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setEditingNotes(true)} className="btn btn-primary">Edit</button>
+              <button onClick={deleteNotes} className="btn btn-danger">Delete</button>
+            </div>
+          </>
+        )}
       </div>
 
     </div>
