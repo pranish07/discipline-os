@@ -79,34 +79,6 @@ async function seed() {
   if (tasksErr) console.error('Tasks seed error:', tasksErr.message);
   else console.log(`  ✓ ${tasks.length} daily tasks`);
 
-  // ── Daily Notes (14 days) ──
-  const noteTexts = [
-    'Felt great today. Woke up early and meditated.',
-    'Struggled with focus but pushed through.',
-    'Good progress on the project.',
-    'Slept well. Energy was high all day.',
-    'Too much screen time. Need to cut back.',
-    'Productive morning, slow afternoon.',
-    'Went for a walk. Cleared my mind.',
-    'Felt tired but completed everything.',
-    'Great day. Learned something new.',
-    'Could have done better. Tomorrow is a new day.',
-    'Focused and disciplined. Streak alive.',
-    'Skipped workout. Get back on track tomorrow.',
-    'Good day overall. Stayed disciplined.',
-    'Reflecting on the week. Steady progress.',
-  ];
-  const dailyNotes = [];
-  for (let i = 13; i >= 0; i--) {
-    dailyNotes.push({
-      user_id: userId, date: daysAgo(i),
-      content: noteTexts[i % noteTexts.length],
-    });
-  }
-  const { error: notesErr } = await supabase.from('daily_notes').upsert(dailyNotes, { onConflict: 'user_id,date' });
-  if (notesErr) console.error('Notes seed error:', notesErr.message);
-  else console.log(`  ✓ ${dailyNotes.length} daily notes`);
-
   // ── Life Goals ──
   const goals = [
     { user_id: userId, title: 'Run a marathon', description: 'Complete a full marathon by end of year', category: 'Fitness', status: 'active', sort_order: 1 },
@@ -209,7 +181,7 @@ async function deleteSeed() {
   const userId = await getUserId();
   console.log(`Deleting seed data for user: ${EMAIL}`);
 
-  const tables = ['sleep_logs', 'daily_tasks', 'daily_notes', 'life_goals', 'exercise_schedule', 'exercise_logs', 'pmo_logs', 'screen_time_logs'];
+  const tables = ['sleep_logs', 'daily_tasks', 'life_goals', 'exercise_schedule', 'exercise_logs', 'pmo_logs', 'screen_time_logs'];
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().eq('user_id', userId);
     if (error) console.error(`Error deleting from ${table}:`, error.message);

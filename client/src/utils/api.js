@@ -58,8 +58,3 @@ export const GoalAPI = {
 export const StatsAPI = {
   get: (period) => api.get('/stats', { params: { period } }).then(r => r.data),
 };
-
-export const NotesAPI = {
-  get: (date) => api.get('/notes', { params: { date } }).then(r => r.data),
-  upsert: (data) => api.post('/notes', data).then(r => r.data),
-};

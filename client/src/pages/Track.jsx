@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SleepAPI, TaskAPI, PMOAPI, ExerciseAPI, ScreenAPI, GoalAPI, NotesAPI } from '../utils/api.js';
+import { SleepAPI, TaskAPI, PMOAPI, ExerciseAPI, ScreenAPI, GoalAPI } from '../utils/api.js';
 
 const TIME_OPTIONS = [];
 for (let h = 0; h < 24; h++) {
@@ -113,28 +113,37 @@ function TasksSection({ date }) {
   const [notes, setNotes] = useState('');
 
   const load = useCallback(async () => {
-    const [t, n] = await Promise.all([
-      TaskAPI.byDate(date).catch(() => []),
-      NotesAPI.get(date).catch(() => ({ content: '' })),
-    ]);
+    const t = await TaskAPI.byDate(date).catch(() => []);
     setTasks(t);
     const regular = t.filter(x => x.task_number > 0);
     if (regular.length) setTitles(regular.map(x => x.title));
     else setTitles(['', '', '']);
-    setNotes(n.content || '');
+    const task1 = t.find(x => x.task_number === 1);
+    setNotes(task1?.notes || '');
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
 
   async function saveNotes() {
-    await NotesAPI.upsert({ date, content: notes || '' });
-    const n = await NotesAPI.get(date).catch(() => ({ content: '' }));
-    setNotes(n.content || '');
+    const task1 = tasks.find(x => x.task_number === 1);
+    if (task1) {
+      await TaskAPI.update(task1.id, { notes: notes || null });
+    } else {
+      await TaskAPI.upsert({ date, task_number: 1, title: '.notes', priority: 'Medium', status: 'pending', notes: notes || null });
+    }
+    await load();
   }
 
   async function saveTask(num) {
     if (!titles[num - 1].trim()) return;
-    await TaskAPI.upsert({ date, task_number: num, title: titles[num - 1], priority: num === 1 ? 'High' : num === 2 ? 'Medium' : 'Low', status: 'pending' });
+    const existing = tasks.find(x => x.task_number === num);
+    await TaskAPI.upsert({
+      date, task_number: num,
+      title: titles[num - 1],
+      priority: num === 1 ? 'High' : num === 2 ? 'Medium' : 'Low',
+      status: 'pending',
+      notes: num === 1 ? (notes || null) : (existing?.notes || null),
+    });
     await load();
   }
 
